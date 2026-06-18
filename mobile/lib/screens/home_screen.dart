@@ -933,9 +933,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         children: [
           Icon(icon, color: color, size: 20),
           const SizedBox(height: 8),
-          Text(value, style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: isDark ? Colors.white : Colors.black87)),
+          Text(value, style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: isDark ? Colors.white : const Color(0xFF0F172A))),
           const SizedBox(height: 2),
-          Text(label, style: TextStyle(color: Colors.grey[500], fontSize: 10, fontWeight: FontWeight.w500)),
+          Text(label, style: TextStyle(color: isDark ? Colors.grey[400] : Colors.grey[600], fontSize: 10, fontWeight: FontWeight.w500)),
         ],
       ),
     );
@@ -983,7 +983,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             const SizedBox(height: 2),
             Text(
               desc,
-              style: TextStyle(fontSize: 8, color: Colors.grey[500]),
+              style: TextStyle(fontSize: 8, color: isDark ? Colors.grey[400] : Colors.grey[600]),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.center,
@@ -1049,7 +1049,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       _t('understanding_level', lang),
                       style: TextStyle(
                         fontSize: 11,
-                        color: Colors.grey[500],
+                        color: isDark ? Colors.grey[400] : Colors.grey[600],
                       ),
                     ),
                   ],
@@ -1210,9 +1210,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(_t('welcome', lang), style: TextStyle(fontSize: 12, color: isDark ? Colors.grey[500] : Colors.grey[500], fontWeight: FontWeight.w500)),
+              Text(_t('welcome', lang), style: TextStyle(fontSize: 12, color: isDark ? Colors.grey[400] : Colors.grey[600], fontWeight: FontWeight.w500)),
               const SizedBox(height: 2),
-              Text('ARise Learn', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: isDark ? Colors.white : Colors.black87, letterSpacing: -0.5)),
+              Text('ARise Learn', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: isDark ? Colors.white : const Color(0xFF0F172A), letterSpacing: -0.5)),
             ],
           ),
         ),
@@ -1435,7 +1435,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         style: TextStyle(
                           fontWeight: FontWeight.w800,
                           fontSize: 13,
-                          color: isDark ? Colors.white : Colors.black87,
+                          color: isDark ? Colors.white : const Color(0xFF0F172A),
                         ),
                       ),
                       Text(
@@ -1444,7 +1444,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           fontSize: 10,
-                          color: isDark ? Colors.grey[500] : Colors.grey[500],
+                          color: isDark ? Colors.grey[400] : Colors.grey[600],
                         ),
                       ),
                     ],
@@ -1488,9 +1488,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             child: Icon(icon, color: color, size: 18),
           ),
           const SizedBox(height: 12),
-          Text(value, style: TextStyle(fontWeight: FontWeight.w900, fontSize: 20, color: isDark ? Colors.white : Colors.black87)),
+          Text(value, style: TextStyle(fontWeight: FontWeight.w900, fontSize: 20, color: isDark ? Colors.white : const Color(0xFF0F172A))),
           const SizedBox(height: 2),
-          Text(label, style: TextStyle(color: Colors.grey[500], fontSize: 11, fontWeight: FontWeight.w500)),
+          Text(label, style: TextStyle(color: isDark ? Colors.grey[400] : Colors.grey[600], fontSize: 11, fontWeight: FontWeight.w500)),
         ],
       ),
     );
@@ -1508,7 +1508,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           child: Icon(icon, size: 18, color: Theme.of(context).colorScheme.primary),
         ),
         const SizedBox(width: 12),
-        Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, letterSpacing: -0.3)),
+        Text(title, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, letterSpacing: -0.3, color: isDark ? Colors.white : const Color(0xFF0F172A))),
         const Spacer(),
         TextButton(
           onPressed: () => setState(() => _currentNav = 2),
@@ -1694,9 +1694,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(item.title, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15, letterSpacing: -0.2)),
+                          Text(item.title, style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15, letterSpacing: -0.2, color: isDark ? Colors.white : const Color(0xFF0F172A))),
                           const SizedBox(height: 4),
-                          Text(item.subtitle, style: TextStyle(color: isDark ? Colors.grey[500] : Colors.grey[500], fontSize: 11, fontWeight: FontWeight.w500)),
+                          Text(item.subtitle, style: TextStyle(color: isDark ? Colors.grey[400] : Colors.grey[600], fontSize: 11, fontWeight: FontWeight.w500)),
                         ],
                       ),
                     ],
