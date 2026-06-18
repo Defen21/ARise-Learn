@@ -540,6 +540,43 @@ class Model3DPainter extends CustomPainter {
     } else {
       _paintAtom(canvas, size);
     }
+
+    // Draw CAD coordinate axes in the bottom-left corner
+    _drawCoordinateGizmo(canvas, size);
+  }
+
+  void _drawCoordinateGizmo(Canvas canvas, Size size) {
+    final center = Offset(50.0, size.height - 180.0);
+    final theta = ry + baseAngle;
+    
+    Offset rotateVector(double x, double y, double z) {
+      final x1 = x * math.cos(theta) - z * math.sin(theta);
+      final z1 = x * math.sin(theta) + z * math.cos(theta);
+      
+      final y2 = y * math.cos(rx) - z1 * math.sin(rx);
+      return Offset(center.dx + x1, center.dy + y2);
+    }
+
+    final origin = center;
+    final xEnd = rotateVector(35, 0, 0);
+    final yEnd = rotateVector(0, -35, 0); // Y points up in CAD local space
+    final zEnd = rotateVector(0, 0, 35);
+
+    // Draw Axes lines
+    canvas.drawLine(origin, xEnd, Paint()..color = Colors.redAccent..strokeWidth = 2.5);
+    canvas.drawLine(origin, yEnd, Paint()..color = Colors.greenAccent..strokeWidth = 2.5);
+    canvas.drawLine(origin, zEnd, Paint()..color = Colors.blueAccent..strokeWidth = 2.5);
+
+    // Draw Origin sphere
+    canvas.drawCircle(origin, 4, Paint()..color = Colors.white..style = PaintingStyle.fill);
+
+    // Draw Labels 'X', 'Y', 'Z'
+    _drawText(canvas, xEnd + const Offset(4, 0), 'X', Colors.redAccent, 10, bold: true);
+    _drawText(canvas, yEnd - const Offset(0, 6), 'Y', Colors.greenAccent, 10, bold: true);
+    _drawText(canvas, zEnd + const Offset(0, 4), 'Z', Colors.blueAccent, 10, bold: true);
+
+    // Circle boundary guide
+    canvas.drawCircle(origin, 42, Paint()..color = Colors.white10..style = PaintingStyle.stroke..strokeWidth = 1);
   }
 
   void _drawARFloorGrid(Canvas canvas, Size size) {

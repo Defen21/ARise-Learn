@@ -28,7 +28,7 @@ class EdutechApp extends StatelessWidget {
     return MaterialApp(
       title: 'ARise Learn',
       debugShowCheckedModeBanner: false,
-      themeMode: ThemeMode.dark, // Default to dark mode for premium sci-fi feel
+      themeMode: context.watch<ApiService>().themeMode,
       
       // Light Theme Design
       theme: ThemeData(

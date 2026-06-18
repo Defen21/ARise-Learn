@@ -89,22 +89,63 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ],
                   ),
-                  Container(
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: Theme.of(context).colorScheme.primary.withOpacity(0.5),
-                        width: 2,
+                  Row(
+                    children: [
+                      IconButton(
+                        icon: Icon(isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined),
+                        color: isDark ? Colors.yellowAccent : Theme.of(context).colorScheme.primary,
+                        tooltip: isDark ? 'Aktifkan Mode Terang' : 'Aktifkan Mode Gelap',
+                        onPressed: () {
+                          apiService.toggleTheme();
+                        },
                       ),
-                    ),
-                    child: const CircleAvatar(
-                      radius: 24,
-                      backgroundImage: NetworkImage(
-                        'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=150',
+                      const SizedBox(width: 8),
+                      Container(
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: Theme.of(context).colorScheme.primary.withOpacity(0.5),
+                            width: 2,
+                          ),
+                        ),
+                        child: const CircleAvatar(
+                          radius: 24,
+                          backgroundImage: NetworkImage(
+                            'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=150',
+                          ),
+                        ),
                       ),
-                    ),
+                    ],
                   ),
                 ],
+              ),
+              const SizedBox(height: 18),
+
+              // Student statistics panel
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(
+                    color: isDark ? const Color(0xFF334155) : Colors.grey[200]!,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(isDark ? 0.25 : 0.04),
+                      blurRadius: 8,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    _buildStatItem(context, '4', 'Kelas Aktif', Icons.menu_book, Colors.blueAccent),
+                    _buildStatItem(context, '12', 'Model 3D', Icons.view_in_ar, Colors.purpleAccent),
+                    _buildStatItem(context, '94%', 'Grounded RAG', Icons.verified_user, Colors.greenAccent),
+                  ],
+                ),
               ),
               const SizedBox(height: 24),
 
@@ -122,7 +163,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
+                      color: Theme.of(context).colorScheme.primary.withOpacity(0.35),
                       blurRadius: 16,
                       offset: const Offset(0, 8),
                     ),
@@ -181,9 +222,22 @@ class _HomeScreenState extends State<HomeScreen> {
                           borderSide: BorderSide.none,
                         ),
                         prefixIcon: const Icon(Icons.link, color: Colors.white70),
+                        suffixIcon: _urlController.text.isNotEmpty
+                            ? IconButton(
+                                icon: const Icon(Icons.clear, color: Colors.white70),
+                                onPressed: () {
+                                  setState(() {
+                                    _urlController.clear();
+                                  });
+                                },
+                              )
+                            : null,
                       ),
+                      onChanged: (text) {
+                        setState(() {});
+                      },
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 14),
                     
                     // Quick Presets
                     const Text(
@@ -246,7 +300,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                     ),
                     TextButton(
-                      onPressed: () {}, // Clear history / View all
+                      onPressed: () {}, 
                       child: const Text('Lihat Semua'),
                     ),
                   ],
@@ -265,7 +319,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           Navigator.pushNamed(context, '/result');
                         },
                         child: Container(
-                          width: 200,
+                          width: 210,
                           margin: const EdgeInsets.only(right: 14),
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
@@ -274,6 +328,13 @@ class _HomeScreenState extends State<HomeScreen> {
                             border: Border.all(
                               color: isDark ? const Color(0xFF334155) : Colors.grey[200]!,
                             ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(isDark ? 0.15 : 0.03),
+                                blurRadius: 4,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -306,9 +367,9 @@ class _HomeScreenState extends State<HomeScreen> {
                               ),
                               const SizedBox(height: 8),
                               Text(
-                                item.explanation,
+                                item.explanation.replaceAll(RegExp(r'[#\*]'), ''),
                                 style: TextStyle(
-                                  color: Colors.grey[500],
+                                  color: isDark ? Colors.grey[400] : Colors.grey[600],
                                   fontSize: 11,
                                 ),
                                 maxLines: 2,
@@ -377,7 +438,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     subtitle: 'Kepolaran & Sudut Kovalen',
                     icon: Icons.science,
                     assetId: 'water_molecule',
-                    color: Colors.tealAccent,
+                    color: Colors.teal,
                   ),
                   _buildCatalogCard(
                     context,
@@ -393,6 +454,36 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildStatItem(BuildContext context, String value, String label, IconData icon, Color color) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Row(
+      children: [
+        Icon(icon, color: color, size: 20),
+        const SizedBox(width: 8),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              value,
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+                color: isDark ? Colors.white : Colors.black87,
+              ),
+            ),
+            Text(
+              label,
+              style: TextStyle(
+                color: Colors.grey[500],
+                fontSize: 9,
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 
@@ -428,54 +519,85 @@ class _HomeScreenState extends State<HomeScreen> {
   }) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return Card(
-      elevation: isDark ? 4 : 1,
-      child: InkWell(
+    return Container(
+      decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),
-        onTap: () {
-          Navigator.pushNamed(context, '/ar', arguments: assetId);
-        },
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: color.withOpacity(0.15),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  icon,
-                  color: color,
-                  size: 24,
-                ),
-              ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    subtitle,
-                    style: TextStyle(
-                      color: Colors.grey[500],
-                      fontSize: 10,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
+        gradient: LinearGradient(
+          colors: isDark
+              ? [
+                  const Color(0xFF1E293B),
+                  color.withOpacity(0.04),
+                ]
+              : [
+                  Colors.white,
+                  color.withOpacity(0.03),
                 ],
-              ),
-            ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(isDark ? 0.2 : 0.03),
+            blurRadius: 6,
+            offset: const Offset(0, 3),
+          ),
+        ],
+        border: Border.all(
+          color: isDark
+              ? color.withOpacity(0.2)
+              : color.withOpacity(0.15),
+          width: 1.2,
+        ),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(20),
+          onTap: () {
+            Navigator.pushNamed(context, '/ar', arguments: assetId);
+          },
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: color.withOpacity(0.15),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    icon,
+                    color: color,
+                    size: 24,
+                  ),
+                ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13.5,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        color: isDark ? Colors.grey[400] : Colors.grey[600],
+                        fontSize: 10,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
       ),

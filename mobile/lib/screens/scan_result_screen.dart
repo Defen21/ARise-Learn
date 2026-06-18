@@ -121,7 +121,7 @@ class _ScanResultScreenState extends State<ScanResultScreen> with SingleTickerPr
               Container(
                 height: 180,
                 width: double.infinity,
-                color: Colors.black.withOpacity(0.4),
+                color: Colors.black.withOpacity(0.45),
               ),
               // Scanner Laser Line
               TweenAnimationBuilder<double>(
@@ -148,7 +148,7 @@ class _ScanResultScreenState extends State<ScanResultScreen> with SingleTickerPr
                     ),
                   );
                 },
-                onEnd: () {}, // Handled by continuous rebuild or simple linear loops, loops implicitly if we use repeat, let's keep it simple
+                onEnd: () {}, 
               ),
               // Overlay labels
               Positioned(
@@ -164,6 +164,13 @@ class _ScanResultScreenState extends State<ScanResultScreen> with SingleTickerPr
                       decoration: BoxDecoration(
                         color: Theme.of(context).colorScheme.primary,
                         borderRadius: BorderRadius.circular(20),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.3),
+                            blurRadius: 4,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
                       ),
                       child: Row(
                         children: [
@@ -180,18 +187,28 @@ class _ScanResultScreenState extends State<ScanResultScreen> with SingleTickerPr
                         ],
                       ),
                     ),
-                    // Confidence Glow
+                    
+                    // Circular Progress Dial confidence rating
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                       decoration: BoxDecoration(
-                        color: Colors.black.withOpacity(0.6),
+                        color: Colors.black.withOpacity(0.7),
                         borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: Colors.greenAccent, width: 1.5),
+                        border: Border.all(color: Colors.greenAccent, width: 1.2),
                       ),
                       child: Row(
                         children: [
-                          const Icon(Icons.verified, color: Colors.greenAccent, size: 14),
-                          const SizedBox(width: 4),
+                          SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator(
+                              value: result.confidence,
+                              strokeWidth: 2,
+                              color: Colors.greenAccent,
+                              backgroundColor: Colors.white10,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
                           Text(
                             '${(result.confidence * 100).toStringAsFixed(0)}% Match',
                             style: const TextStyle(
@@ -241,6 +258,13 @@ class _ScanResultScreenState extends State<ScanResultScreen> with SingleTickerPr
                           border: Border.all(
                             color: isDark ? const Color(0xFF334155) : Colors.grey[200]!,
                           ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(isDark ? 0.2 : 0.03),
+                              blurRadius: 8,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
                         ),
                         child: SelectableText.rich(
                           TextSpan(
@@ -250,8 +274,8 @@ class _ScanResultScreenState extends State<ScanResultScreen> with SingleTickerPr
                       ),
                       const SizedBox(height: 20),
 
-                      // TTS Audio guide mockup
-                      VoiceGuidePlayer(topicName: result.subjectTopic),
+                      // Spotify-style TTS Audio guide card
+                      SpotifyVoicePlayer(topicName: result.subjectTopic),
                       const SizedBox(height: 24),
                     ],
                   ),
@@ -272,7 +296,11 @@ class _ScanResultScreenState extends State<ScanResultScreen> with SingleTickerPr
                       const SizedBox(height: 8),
                       Text(
                         'Penjelasan AI di atas telah divalidasi terhadap basis data buku teks resmi untuk mencegah halusinasi jawaban.',
-                        style: TextStyle(color: Colors.grey[500], fontSize: 13, height: 1.4),
+                        style: TextStyle(
+                          color: isDark ? Colors.grey[400] : Colors.grey[600],
+                          fontSize: 13,
+                          height: 1.4,
+                        ),
                       ),
                       const SizedBox(height: 20),
                       _buildCurriculumSourceCard(
@@ -362,6 +390,13 @@ class _ScanResultScreenState extends State<ScanResultScreen> with SingleTickerPr
         border: Border.all(
           color: isDark ? const Color(0xFF334155) : Colors.grey[200]!,
         ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(isDark ? 0.2 : 0.03),
+            blurRadius: 6,
+            offset: const Offset(0, 3),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -416,16 +451,16 @@ class _ScanResultScreenState extends State<ScanResultScreen> with SingleTickerPr
   }
 }
 
-// Stateful Sub-widget for Voice Assistant Player Simulation
-class VoiceGuidePlayer extends StatefulWidget {
+// Spotify-Style Voice Assistant Player with Equalizer waves and thumbnail
+class SpotifyVoicePlayer extends StatefulWidget {
   final String topicName;
-  const VoiceGuidePlayer({super.key, required this.topicName});
+  const SpotifyVoicePlayer({super.key, required this.topicName});
 
   @override
-  State<VoiceGuidePlayer> createState() => _VoiceGuidePlayerState();
+  State<SpotifyVoicePlayer> createState() => _SpotifyVoicePlayerState();
 }
 
-class _VoiceGuidePlayerState extends State<VoiceGuidePlayer> with SingleTickerProviderStateMixin {
+class _SpotifyVoicePlayerState extends State<SpotifyVoicePlayer> with SingleTickerProviderStateMixin {
   late AnimationController _animController;
   bool _isPlaying = false;
   double _progress = 0.0;
@@ -479,54 +514,93 @@ class _VoiceGuidePlayerState extends State<VoiceGuidePlayer> with SingleTickerPr
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF334155).withOpacity(0.4) : Colors.grey[50],
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: isDark ? Colors.white12 : Colors.grey[200]!,
+        gradient: LinearGradient(
+          colors: isDark
+              ? [const Color(0xFF1E293B), const Color(0xFF0F172A)]
+              : [Colors.white, const Color(0xFFF1F5F9)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
         ),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: isDark ? Colors.white10 : Colors.grey[200]!,
+          width: 1.2,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(isDark ? 0.3 : 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 5),
+          ),
+        ],
       ),
       child: Column(
         children: [
           Row(
             children: [
-              IconButton.filled(
-                onPressed: _togglePlay,
-                icon: Icon(_isPlaying ? Icons.pause : Icons.play_arrow),
-                style: IconButton.styleFrom(
-                  backgroundColor: Theme.of(context).colorScheme.primary,
-                  foregroundColor: Colors.white,
-                  minimumSize: const Size(40, 40),
+              // Podcast/Audio Cover Thumbnail Art
+              Container(
+                width: 50,
+                height: 50,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  gradient: LinearGradient(
+                    colors: [
+                      Theme.of(context).colorScheme.primary,
+                      Theme.of(context).colorScheme.secondary,
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                ),
+                child: const Icon(
+                  Icons.headset,
+                  color: Colors.white,
+                  size: 26,
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 14),
+              
+              // Text Titles
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       'Asisten Suara AI',
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                        color: isDark ? Colors.white : Colors.black87,
+                      ),
                     ),
+                    const SizedBox(height: 3),
                     Text(
-                      _isPlaying ? 'Sedang membacakan naskah RAG...' : 'Ketuk untuk mendengarkan penjelasan',
-                      style: TextStyle(color: Colors.grey[500], fontSize: 11),
+                      _isPlaying ? 'Memutar audio penjelasan...' : 'Ketuk untuk mendengarkan',
+                      style: TextStyle(
+                        color: isDark ? Colors.grey[400] : Colors.grey[600],
+                        fontSize: 11,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
                 ),
               ),
+              
+              // Equalizer visualizer
               if (_isPlaying)
-                // Equalizer Wave
                 AnimatedBuilder(
                   animation: _animController,
                   builder: (context, child) {
                     return Row(
                       mainAxisSize: MainAxisSize.min,
-                      children: List.generate(5, (index) {
-                        final shift = index * 0.2;
+                      children: List.generate(4, (index) {
+                        final shift = index * 0.25;
                         final val = (shift + _animController.value) % 1.0;
                         final height = 4.0 + (16.0 * (val - 0.5).abs() * 2);
                         return Container(
-                          width: 3,
+                          width: 3.2,
                           height: height,
                           margin: const EdgeInsets.symmetric(horizontal: 1.5),
                           decoration: BoxDecoration(
@@ -540,7 +614,9 @@ class _VoiceGuidePlayerState extends State<VoiceGuidePlayer> with SingleTickerPr
                 ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
+          
+          // Slider Progress
           Row(
             children: [
               Text(
@@ -550,9 +626,9 @@ class _VoiceGuidePlayerState extends State<VoiceGuidePlayer> with SingleTickerPr
               Expanded(
                 child: SliderTheme(
                   data: SliderTheme.of(context).copyWith(
-                    trackHeight: 3,
+                    trackHeight: 3.5,
                     thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
-                    overlayShape: const RoundSliderOverlayShape(overlayRadius: 12),
+                    overlayShape: const RoundSliderOverlayShape(overlayRadius: 10),
                     activeTrackColor: Theme.of(context).colorScheme.primary,
                     inactiveTrackColor: isDark ? Colors.white12 : Colors.grey[300],
                     thumbColor: Theme.of(context).colorScheme.primary,
@@ -570,6 +646,50 @@ class _VoiceGuidePlayerState extends State<VoiceGuidePlayer> with SingleTickerPr
               Text(
                 '0:45',
                 style: TextStyle(color: Colors.grey[500], fontSize: 10),
+              ),
+            ],
+          ),
+          
+          // Play controls center
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.skip_previous, size: 24),
+                color: isDark ? Colors.white70 : Colors.black87,
+                onPressed: () {},
+              ),
+              const SizedBox(width: 16),
+              
+              // Glowing circular play button
+              GestureDetector(
+                onTap: _togglePlay,
+                child: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.primary,
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Theme.of(context).colorScheme.primary.withOpacity(0.4),
+                        blurRadius: 10,
+                        spreadRadius: 1,
+                      ),
+                    ],
+                  ),
+                  child: Icon(
+                    _isPlaying ? Icons.pause : Icons.play_arrow,
+                    color: Colors.white,
+                    size: 26,
+                  ),
+                ),
+              ),
+              
+              const SizedBox(width: 16),
+              IconButton(
+                icon: const Icon(Icons.skip_next, size: 24),
+                color: isDark ? Colors.white70 : Colors.black87,
+                onPressed: () {},
               ),
             ],
           ),

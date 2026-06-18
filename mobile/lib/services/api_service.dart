@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart' show ChangeNotifier, kIsWeb;
+import 'package:flutter/material.dart' show ThemeMode;
 import 'package:dio/dio.dart';
 import '../models/scan_result.dart';
 
@@ -79,6 +80,14 @@ class ApiService extends ChangeNotifier {
       notifyListeners();
       return null;
     }
+  }
+
+  ThemeMode _themeMode = ThemeMode.dark;
+  ThemeMode get themeMode => _themeMode;
+
+  void toggleTheme() {
+    _themeMode = _themeMode == ThemeMode.dark ? ThemeMode.light : ThemeMode.dark;
+    notifyListeners();
   }
 
   /// Sets the lastResult manually (e.g. when selecting from history)
