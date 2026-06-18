@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'dart:ui' show ImageFilter;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
@@ -713,13 +714,25 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       margin: const EdgeInsets.only(right: 10),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: isDark ? Colors.white.withOpacity(0.04) : Colors.white,
+        color: unlocked
+            ? (isDark ? const Color(0xFF2D2A1E) : const Color(0xFFFFFDF5))
+            : (isDark ? Colors.white.withOpacity(0.04) : Colors.white),
         borderRadius: BorderRadius.circular(18),
         border: Border.all(
           color: unlocked
-              ? const Color(0xFFFBBF24).withOpacity(0.2)
+              ? const Color(0xFFFBBF24).withOpacity(0.4)
               : (isDark ? Colors.white.withOpacity(0.06) : Colors.grey.withOpacity(0.1)),
+          width: unlocked ? 1.5 : 1.0,
         ),
+        boxShadow: unlocked
+            ? [
+                BoxShadow(
+                  color: const Color(0xFFFBBF24).withOpacity(isDark ? 0.15 : 0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                )
+              ]
+            : null,
       ),
       child: Opacity(
         opacity: unlocked ? 1.0 : 0.4,
@@ -872,28 +885,40 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     return SafeArea(
       top: false,
       child: Container(
-        margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+        margin: const EdgeInsets.fromLTRB(24, 0, 24, 16),
         decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF1C1B2E) : Colors.white,
-          borderRadius: BorderRadius.circular(28),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(isDark ? 0.3 : 0.08),
-              blurRadius: 20,
-              offset: const Offset(0, 4),
+              color: scheme.primary.withOpacity(isDark ? 0.15 : 0.05),
+              blurRadius: 24,
+              offset: const Offset(0, 8),
             ),
           ],
         ),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _buildNavItem(Icons.home_rounded, 0, isDark, scheme),
-              _buildNavItem(Icons.search_rounded, 1, isDark, scheme),
-              _buildNavItem(Icons.view_in_ar_rounded, 2, isDark, scheme),
-              _buildNavItem(Icons.person_rounded, 3, isDark, scheme),
-            ],
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(30),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 12.0, sigmaY: 12.0),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              decoration: BoxDecoration(
+                color: (isDark ? const Color(0xFF1C1B2E) : Colors.white).withOpacity(0.85),
+                borderRadius: BorderRadius.circular(30),
+                border: Border.all(
+                  color: (isDark ? Colors.white : Colors.black).withOpacity(0.08),
+                  width: 1.5,
+                ),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  _buildNavItem(Icons.home_rounded, 0, isDark, scheme),
+                  _buildNavItem(Icons.search_rounded, 1, isDark, scheme),
+                  _buildNavItem(Icons.view_in_ar_rounded, 2, isDark, scheme),
+                  _buildNavItem(Icons.person_rounded, 3, isDark, scheme),
+                ],
+              ),
+            ),
           ),
         ),
       ),
@@ -911,6 +936,15 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         decoration: BoxDecoration(
           gradient: isActive ? LinearGradient(colors: [scheme.primary, scheme.tertiary]) : null,
           borderRadius: BorderRadius.circular(20),
+          boxShadow: isActive
+              ? [
+                  BoxShadow(
+                    color: scheme.primary.withOpacity(0.35),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  )
+                ]
+              : null,
         ),
         child: Icon(
           icon,
@@ -1648,9 +1682,17 @@ class RadarScannerPainter extends CustomPainter {
     final center = Offset(size.width / 2, size.height / 2);
     final maxRadius = math.min(size.width, size.height) / 2;
 
-    // Draw grid rings
+    // 1. Pulsing ring
+    final pulseRadius = maxRadius * animationValue;
+    final pulsePaint = Paint()
+      ..color = color.withOpacity(0.25 * (1.0 - animationValue))
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.0;
+    canvas.drawCircle(center, pulseRadius, pulsePaint);
+
+    // 2. Grid rings
     final paintRing = Paint()
-      ..color = color.withOpacity(0.1)
+      ..color = color.withOpacity(0.08)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.0;
     
@@ -1658,20 +1700,46 @@ class RadarScannerPainter extends CustomPainter {
       canvas.drawCircle(center, maxRadius * (i / 3), paintRing);
     }
 
-    // Draw sweep lines
+    // 3. Crosshairs
+    final paintCross = Paint()
+      ..color = color.withOpacity(0.12)
+      ..strokeWidth = 1.0;
+    canvas.drawLine(Offset(center.dx - maxRadius, center.dy), Offset(center.dx + maxRadius, center.dy), paintCross);
+    canvas.drawLine(Offset(center.dx, center.dy - maxRadius), Offset(center.dx, center.dy + maxRadius), paintCross);
+
+    // 4. Tick marks around the outer boundary
+    final paintTicks = Paint()
+      ..color = color.withOpacity(0.2)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.0;
+    const tickCount = 24;
+    for (int i = 0; i < tickCount; i++) {
+      final angle = (i * 2 * math.pi) / tickCount;
+      final start = Offset(
+        center.dx + (maxRadius - 6) * math.cos(angle),
+        center.dy + (maxRadius - 6) * math.sin(angle),
+      );
+      final end = Offset(
+        center.dx + maxRadius * math.cos(angle),
+        center.dy + maxRadius * math.sin(angle),
+      );
+      canvas.drawLine(start, end, paintTicks);
+    }
+
+    // 5. Sweep gradient
     final paintSweep = Paint()
       ..style = PaintingStyle.fill
       ..shader = SweepGradient(
-        colors: [color.withOpacity(0.0), color.withOpacity(0.2), color.withOpacity(0.0)],
+        colors: [color.withOpacity(0.0), color.withOpacity(0.35), color.withOpacity(0.0)],
         stops: const [0.0, 0.5, 1.0],
         transform: GradientRotation(animationValue * 2 * math.pi),
       ).createShader(Rect.fromCircle(center: center, radius: maxRadius));
     
     canvas.drawCircle(center, maxRadius, paintSweep);
 
-    // Draw active scanning ray
+    // 6. Active scanning ray
     final rayPaint = Paint()
-      ..color = color.withOpacity(0.5)
+      ..color = color.withOpacity(0.6)
       ..strokeWidth = 2.0;
     final angle = animationValue * 2 * math.pi;
     canvas.drawLine(
@@ -1680,9 +1748,14 @@ class RadarScannerPainter extends CustomPainter {
       rayPaint,
     );
 
-    // Draw center dot
+    // 7. Center glow & dot
+    final glowPaint = Paint()
+      ..color = color.withOpacity(0.3)
+      ..style = PaintingStyle.fill;
+    canvas.drawCircle(center, 12, glowPaint);
+
     final dotPaint = Paint()
-      ..color = color
+      ..color = Colors.white
       ..style = PaintingStyle.fill;
     canvas.drawCircle(center, 4, dotPaint);
   }
