@@ -288,45 +288,30 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         children: [
           Container(
             decoration: const BoxDecoration(
-              color: Color(0xFFF8FAFC),
+              color: Color(0xFFF1F5F9), // Very clean white-slate base
             ),
           ),
+          // 1. Soft sky blue blob at top center/right
           Positioned(
-            top: -80,
-            left: -80,
-            width: 400,
-            height: 400,
+            top: -120,
+            right: -60,
+            width: 480,
+            height: 480,
             child: Container(
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 gradient: RadialGradient(
                   colors: [
-                    const Color(0xFFFBCFE8).withOpacity(0.4),
-                    const Color(0xFFFBCFE8).withOpacity(0.0),
+                    const Color(0xFF38BDF8).withOpacity(0.32), // Sky blue
+                    const Color(0xFF38BDF8).withOpacity(0.0),
                   ],
                 ),
               ),
             ),
           ),
+          // 2. Soft pastel blue blob at center/left
           Positioned(
-            top: -100,
-            right: -50,
-            width: 450,
-            height: 450,
-            child: Container(
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: RadialGradient(
-                  colors: [
-                    const Color(0xFFCFFAFE).withOpacity(0.45),
-                    const Color(0xFFCFFAFE).withOpacity(0.0),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          Positioned(
-            top: 250,
+            top: 220,
             left: -120,
             width: 450,
             height: 450,
@@ -335,59 +320,44 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 shape: BoxShape.circle,
                 gradient: RadialGradient(
                   colors: [
-                    const Color(0xFFE0F2FE).withOpacity(0.45),
-                    const Color(0xFFE0F2FE).withOpacity(0.0),
+                    const Color(0xFF60A5FA).withOpacity(0.25), // Medium blue
+                    const Color(0xFF60A5FA).withOpacity(0.0),
                   ],
                 ),
               ),
             ),
           ),
-          Positioned(
-            top: 200,
-            right: -120,
-            width: 500,
-            height: 500,
-            child: Container(
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: RadialGradient(
-                  colors: [
-                    const Color(0xFFE0E7FF).withOpacity(0.4),
-                    const Color(0xFFE0E7FF).withOpacity(0.0),
-                  ],
-                ),
-              ),
-            ),
-          ),
+          // 3. Soft indigo/violet blob at bottom right
           Positioned(
             bottom: -100,
-            left: -80,
-            width: 400,
-            height: 400,
+            right: -80,
+            width: 480,
+            height: 480,
             child: Container(
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 gradient: RadialGradient(
                   colors: [
-                    const Color(0xFFFCE7F3).withOpacity(0.35),
-                    const Color(0xFFFCE7F3).withOpacity(0.0),
+                    const Color(0xFF818CF8).withOpacity(0.24), // Indigo
+                    const Color(0xFF818CF8).withOpacity(0.0),
                   ],
                 ),
               ),
             ),
           ),
+          // 4. Soft mint/teal blob at top left
           Positioned(
-            bottom: -120,
-            right: -80,
-            width: 450,
-            height: 450,
+            top: -60,
+            left: -100,
+            width: 380,
+            height: 380,
             child: Container(
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 gradient: RadialGradient(
                   colors: [
-                    const Color(0xFFCCFBF1).withOpacity(0.4),
-                    const Color(0xFFCCFBF1).withOpacity(0.0),
+                    const Color(0xFF2DD4BF).withOpacity(0.22), // Mint/teal
+                    const Color(0xFF2DD4BF).withOpacity(0.0),
                   ],
                 ),
               ),
@@ -395,7 +365,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           ),
           Positioned.fill(
             child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 75.0, sigmaY: 75.0),
+              filter: ImageFilter.blur(sigmaX: 70.0, sigmaY: 70.0),
               child: Container(color: Colors.transparent),
             ),
           ),
