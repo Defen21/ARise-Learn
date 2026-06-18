@@ -268,10 +268,19 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     }
 
     return Scaffold(
-      body: SafeArea(
-        child: bodyWidget,
+      body: Stack(
+        children: [
+          SafeArea(
+            child: bodyWidget,
+          ),
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: _buildBottomNav(isDark, scheme),
+          ),
+        ],
       ),
-      bottomNavigationBar: _buildBottomNav(isDark, scheme),
     );
   }
 
