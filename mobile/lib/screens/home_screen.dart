@@ -532,7 +532,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       _QuickAction('AR Mode', 'Augmented Reality', Icons.camera_rounded, const Color(0xFFF59E0B), const Color(0xFFF97316)),
     ];
     return SizedBox(
-      height: 110,
+      height: 125,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: actions.length,
@@ -541,7 +541,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           final action = actions[index];
           return Container(
             width: 150,
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: isDark
@@ -568,8 +568,25 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(action.title, style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: isDark ? Colors.white : Colors.black87)),
-                    Text(action.subtitle, style: TextStyle(fontSize: 10, color: isDark ? Colors.grey[500] : Colors.grey[500])),
+                    Text(
+                      action.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 13,
+                        color: isDark ? Colors.white : Colors.black87,
+                      ),
+                    ),
+                    Text(
+                      action.subtitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: isDark ? Colors.grey[500] : Colors.grey[500],
+                      ),
+                    ),
                   ],
                 ),
               ],
