@@ -706,7 +706,7 @@ class _ScanResultScreenState extends State<ScanResultScreen> with SingleTickerPr
                 ),
                 child: FilledButton.icon(
                   onPressed: () {
-                    Navigator.pushNamed(context, '/ar', arguments: 'atom');
+                    Navigator.pushNamed(context, '/ar', arguments: result.asset3dUrl ?? 'atom');
                   },
                   style: FilledButton.styleFrom(
                     minimumSize: const Size(double.infinity, 50),

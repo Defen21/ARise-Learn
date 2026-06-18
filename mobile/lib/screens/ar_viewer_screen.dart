@@ -1,7 +1,10 @@
 import 'dart:async';
 import 'dart:math' as math;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
+import 'package:camera/camera.dart';
+import '../widgets/camera_stub.dart' if (dart.library.html) '../widgets/camera_web.dart';
 
 class ARViewerScreen extends StatefulWidget {
   const ARViewerScreen({super.key});
@@ -20,6 +23,13 @@ class _ARViewerScreenState extends State<ARViewerScreen> with SingleTickerProvid
   bool _showGrid = true;
   double _pulse = 1.0; // Heart beat pulse
 
+  // Camera variables
+  CameraController? _cameraController;
+  List<CameraDescription>? _cameras;
+  bool _cameraInitialized = false;
+  String? _cameraError;
+  String? _selectedPart;
+
   @override
   void initState() {
     super.initState();
@@ -27,6 +37,8 @@ class _ARViewerScreenState extends State<ARViewerScreen> with SingleTickerProvid
       vsync: this,
       duration: const Duration(seconds: 10),
     )..repeat();
+
+    _initCamera();
 
     // Pulse animation for heart or general breathing effect
     Timer.periodic(const Duration(milliseconds: 1000), (timer) {
@@ -59,27 +71,124 @@ class _ARViewerScreenState extends State<ARViewerScreen> with SingleTickerProvid
     });
   }
 
+  Future<void> _initCamera() async {
+    if (kIsWeb) {
+      setState(() {
+        _cameraInitialized = true;
+      });
+      return;
+    }
+
+    try {
+      _cameras = await availableCameras();
+      if (_cameras != null && _cameras!.isNotEmpty) {
+        _cameraController = CameraController(
+          _cameras!.first,
+          ResolutionPreset.medium,
+          enableAudio: false,
+        );
+        await _cameraController!.initialize();
+        if (mounted) {
+          setState(() {
+            _cameraInitialized = true;
+          });
+        }
+      } else {
+        throw Exception("Kamera tidak ditemukan di perangkat.");
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _cameraError = e.toString().replaceAll("Exception: ", "");
+          _cameraInitialized = true; // stop loading
+        });
+      }
+    }
+  }
+
   @override
   void dispose() {
+    _cameraController?.dispose();
     _animationController.dispose();
     super.dispose();
+  }
+
+  // Project a 3D point (x, y, z) into 2D canvas coordinates
+  Offset projectPoint(double x, double y, double z, Size canvasSize) {
+    final center = Offset(canvasSize.width / 2, canvasSize.height / 2 - 20);
+    
+    // Total rotation angle around Y
+    final theta = _ry + (_autoRotate ? _animationController.value * 2 * math.pi : 0.0);
+    // Rotation around Y
+    final x1 = x * math.cos(theta) - z * math.sin(theta);
+    final z1 = x * math.sin(theta) + z * math.cos(theta);
+
+    // Rotation around X
+    final phi = _rx;
+    final y2 = y * math.cos(phi) - z1 * math.sin(phi);
+    final z2 = y * math.sin(phi) + z1 * math.cos(phi);
+
+    // Perspective factor
+    const cameraDist = 400.0;
+    final factor = cameraDist / (cameraDist + z2);
+    final scaleVal = _scale * 2.1;
+    
+    return Offset(
+      center.dx + x1 * scaleVal * factor,
+      center.dy + y2 * scaleVal * factor,
+    );
+  }
+
+  Offset? _getSelectedPartOffset(String part, String assetId, Size canvasSize) {
+    if (assetId == 'atom' || assetId == 'general') {
+      if (part == 'nucleus') return projectPoint(0, 0, 0, canvasSize);
+      if (part == 'electron') {
+        final baseAngle = _autoRotate ? _animationController.value * 2 * math.pi : 0.0;
+        final electronAngle = baseAngle * 2.0;
+        const radiusX = 85.0;
+        const radiusZ = 40.0;
+        final e1x = radiusX * math.cos(electronAngle);
+        final e1z = radiusZ * math.sin(electronAngle);
+        return projectPoint(e1x, 0, e1z, canvasSize);
+      }
+      if (part == 'orbit') {
+        const radiusX = 85.0;
+        return projectPoint(radiusX, 0, 0, canvasSize);
+      }
+    } else if (assetId == 'heart') {
+      if (part == 'aorta') return projectPoint(-20, -70, 0, canvasSize);
+      if (part == 'myocardium') return projectPoint(0, 70, 0, canvasSize);
+      if (part == 'valve') return projectPoint(0, 0, 0, canvasSize);
+    } else if (assetId == 'dna_helix') {
+      if (part == 'backbone') return projectPoint(45.0, -40, 0, canvasSize);
+      if (part == 'basepair') return projectPoint(0, 20, 0, canvasSize);
+    } else if (assetId == 'water_molecule') {
+      const bondLen = 65.0;
+      const bondAngle = 104.5 * math.pi / 180.0;
+      if (part == 'oxygen') return projectPoint(0, -20, 0, canvasSize);
+      if (part == 'hydrogen') {
+        final h1x = bondLen * math.cos(bondAngle / 2);
+        final h1y = bondLen * math.sin(bondAngle / 2);
+        return projectPoint(h1x, h1y - 20, 0, canvasSize);
+      }
+    }
+    return null;
   }
 
   @override
   Widget build(BuildContext context) {
     final assetId = (ModalRoute.of(context)?.settings.arguments as String?) ?? 'atom';
-    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
       backgroundColor: Colors.black, // Dark space for AR immersion
       body: Stack(
         children: [
-          // 1. Mock Camera Background Feed (Gradient grid)
+          // 1. Live Camera Background Feed (Webcam on Web, CameraPreview on Mobile)
           Positioned.fill(
             child: _buildCameraOverlay(),
           ),
 
-          // 2. Interactive 3D Render Area
+          // 2. Interactive 3D Render Area and Hotspots
           Positioned.fill(
             child: Listener(
               onPointerSignal: (pointerSignal) {
@@ -95,32 +204,279 @@ class _ARViewerScreenState extends State<ARViewerScreen> with SingleTickerProvid
                 },
                 onScaleUpdate: (details) {
                   setState(() {
-                    if (details.pointerCount >= 2) {
-                      // Two or more fingers: zoom
+                    if (details.scale != 1.0) {
                       _scale = (_baseScale * details.scale).clamp(0.4, 2.5);
-                    } else if (details.pointerCount == 1) {
-                      // One finger: rotate
+                    }
+                    if (details.pointerCount == 1 && details.scale == 1.0) {
                       _ry += details.focalPointDelta.dx * 0.007;
                       _rx -= details.focalPointDelta.dy * 0.007;
                     }
                   });
                 },
-                child: AnimatedBuilder(
-                  animation: _animationController,
-                  builder: (context, child) {
-                    final baseAngle = _autoRotate ? _animationController.value * 2 * math.pi : 0.0;
-                    return CustomPaint(
-                      painter: Model3DPainter(
-                        rx: _rx,
-                        ry: _ry,
-                        baseAngle: baseAngle,
-                        scale: _scale * 1.5,
-                        pulse: _pulse,
-                        assetId: assetId,
-                        showGrid: _showGrid,
-                        primaryColor: Theme.of(context).colorScheme.primary,
-                        secondaryColor: Theme.of(context).colorScheme.secondary,
-                      ),
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final canvasSize = Size(constraints.maxWidth, constraints.maxHeight);
+
+                    return AnimatedBuilder(
+                      animation: _animationController,
+                      builder: (context, child) {
+                        final baseAngle = _autoRotate ? _animationController.value * 2 * math.pi : 0.0;
+                        final electronAngle = baseAngle * 2.0;
+
+                        // Calculate projected positions in real time based on active assetId
+                        final List<Widget> hotspots = [];
+                        
+                        if (assetId == 'atom' || assetId == 'general') {
+                          const radiusX = 85.0;
+                          const radiusZ = 40.0;
+                          final nucleusOffset = projectPoint(0, 0, 0, canvasSize);
+                          final orbitOffset = projectPoint(radiusX, 0, 0, canvasSize);
+                          final e1x = radiusX * math.cos(electronAngle);
+                          final e1z = radiusZ * math.sin(electronAngle);
+                          final electronOffset = projectPoint(e1x, 0, e1z, canvasSize);
+
+                          hotspots.addAll([
+                            Positioned(
+                              left: nucleusOffset.dx - 12,
+                              top: nucleusOffset.dy - 12,
+                              child: GestureDetector(
+                                onTap: () => setState(() => _selectedPart = 'nucleus'),
+                                child: _buildPulsingPin(color: Colors.redAccent),
+                              ),
+                            ),
+                            Positioned(
+                              left: electronOffset.dx - 12,
+                              top: electronOffset.dy - 12,
+                              child: GestureDetector(
+                                onTap: () => setState(() => _selectedPart = 'electron'),
+                                child: _buildPulsingPin(color: Colors.yellowAccent),
+                              ),
+                            ),
+                            Positioned(
+                              left: orbitOffset.dx - 12,
+                              top: orbitOffset.dy - 12,
+                              child: GestureDetector(
+                                onTap: () => setState(() => _selectedPart = 'orbit'),
+                                child: _buildPulsingPin(color: Colors.white70),
+                              ),
+                            ),
+                          ]);
+                        } else if (assetId == 'heart') {
+                          final aortaOffset = projectPoint(-20, -70, 0, canvasSize);
+                          final muscleOffset = projectPoint(0, 70, 0, canvasSize);
+                          final valveOffset = projectPoint(0, 0, 0, canvasSize);
+
+                          hotspots.addAll([
+                            Positioned(
+                              left: aortaOffset.dx - 12,
+                              top: aortaOffset.dy - 12,
+                              child: GestureDetector(
+                                onTap: () => setState(() => _selectedPart = 'aorta'),
+                                child: _buildPulsingPin(color: Colors.redAccent),
+                              ),
+                            ),
+                            Positioned(
+                              left: muscleOffset.dx - 12,
+                              top: muscleOffset.dy - 12,
+                              child: GestureDetector(
+                                onTap: () => setState(() => _selectedPart = 'myocardium'),
+                                child: _buildPulsingPin(color: Colors.pinkAccent),
+                              ),
+                            ),
+                            Positioned(
+                              left: valveOffset.dx - 12,
+                              top: valveOffset.dy - 12,
+                              child: GestureDetector(
+                                onTap: () => setState(() => _selectedPart = 'valve'),
+                                child: _buildPulsingPin(color: Colors.white70),
+                              ),
+                            ),
+                          ]);
+                        } else if (assetId == 'dna_helix') {
+                          final backboneOffset = projectPoint(45.0, -40, 0, canvasSize);
+                          final basepairOffset = projectPoint(0, 20, 0, canvasSize);
+
+                          hotspots.addAll([
+                            Positioned(
+                              left: backboneOffset.dx - 12,
+                              top: backboneOffset.dy - 12,
+                              child: GestureDetector(
+                                onTap: () => setState(() => _selectedPart = 'backbone'),
+                                child: _buildPulsingPin(color: Colors.blueAccent),
+                              ),
+                            ),
+                            Positioned(
+                              left: basepairOffset.dx - 12,
+                              top: basepairOffset.dy - 12,
+                              child: GestureDetector(
+                                onTap: () => setState(() => _selectedPart = 'basepair'),
+                                child: _buildPulsingPin(color: Colors.orangeAccent),
+                              ),
+                            ),
+                          ]);
+                        } else if (assetId == 'water_molecule') {
+                          const bondLen = 65.0;
+                          const bondAngle = 104.5 * math.pi / 180.0;
+                          final h1x = bondLen * math.cos(bondAngle / 2);
+                          final h1y = bondLen * math.sin(bondAngle / 2);
+                          final h2x = -bondLen * math.cos(bondAngle / 2);
+                          final h2y = bondLen * math.sin(bondAngle / 2);
+
+                          final oOffset = projectPoint(0, -20, 0, canvasSize);
+                          final h1Offset = projectPoint(h1x, h1y - 20, 0, canvasSize);
+                          final h2Offset = projectPoint(h2x, h2y - 20, 0, canvasSize);
+
+                          hotspots.addAll([
+                            Positioned(
+                              left: oOffset.dx - 12,
+                              top: oOffset.dy - 12,
+                              child: GestureDetector(
+                                onTap: () => setState(() => _selectedPart = 'oxygen'),
+                                child: _buildPulsingPin(color: Colors.redAccent),
+                              ),
+                            ),
+                            Positioned(
+                              left: h1Offset.dx - 12,
+                              top: h1Offset.dy - 12,
+                              child: GestureDetector(
+                                onTap: () => setState(() => _selectedPart = 'hydrogen'),
+                                child: _buildPulsingPin(color: Colors.white),
+                              ),
+                            ),
+                            Positioned(
+                              left: h2Offset.dx - 12,
+                              top: h2Offset.dy - 12,
+                              child: GestureDetector(
+                                onTap: () => setState(() => _selectedPart = 'hydrogen'),
+                                child: _buildPulsingPin(color: Colors.white),
+                              ),
+                            ),
+                          ]);
+                        }
+
+                        if (_selectedPart != null) {
+                          final partOffset = _getSelectedPartOffset(_selectedPart!, assetId, canvasSize);
+                          if (partOffset != null) {
+                            const double bubbleWidth = 220;
+                            const double bubbleHeight = 90;
+                            double leftPos = partOffset.dx - (bubbleWidth / 2);
+                            double topPos = partOffset.dy - bubbleHeight - 20;
+
+                            leftPos = leftPos.clamp(16.0, canvasSize.width - bubbleWidth - 16.0);
+                            topPos = topPos.clamp(80.0, canvasSize.height - bubbleHeight - 180.0);
+
+                            hotspots.addAll([
+                              Positioned(
+                                left: partOffset.dx - 6,
+                                top: partOffset.dy - 18,
+                                child: Transform.rotate(
+                                  angle: math.pi / 4,
+                                  child: Container(
+                                    width: 12,
+                                    height: 12,
+                                    decoration: BoxDecoration(
+                                      color: Colors.black.withOpacity(0.9),
+                                      border: Border(
+                                        bottom: BorderSide(color: _getPartColor(_selectedPart!), width: 1.5),
+                                        right: BorderSide(color: _getPartColor(_selectedPart!), width: 1.5),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              Positioned(
+                                left: leftPos,
+                                top: topPos,
+                                child: Container(
+                                  width: bubbleWidth,
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: Colors.black.withOpacity(0.9),
+                                    borderRadius: BorderRadius.circular(16),
+                                    border: Border.all(
+                                      color: _getPartColor(_selectedPart!),
+                                      width: 1.5,
+                                    ),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: _getPartColor(_selectedPart!).withOpacity(0.3),
+                                        blurRadius: 10,
+                                        spreadRadius: 1,
+                                      ),
+                                    ],
+                                  ),
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          Icon(
+                                            _getPartIcon(_selectedPart!),
+                                            color: _getPartColor(_selectedPart!),
+                                            size: 16,
+                                          ),
+                                          const SizedBox(width: 6),
+                                          Expanded(
+                                            child: Text(
+                                              _getPartTitle(_selectedPart!),
+                                              style: const TextStyle(
+                                                color: Colors.white,
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 11.5,
+                                              ),
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                          GestureDetector(
+                                            onTap: () => setState(() => _selectedPart = null),
+                                            child: const Icon(
+                                              Icons.close,
+                                              color: Colors.white54,
+                                              size: 14,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 6),
+                                      Text(
+                                        _getPartDescription(_selectedPart!),
+                                        style: const TextStyle(
+                                          color: Colors.white70,
+                                          fontSize: 9.5,
+                                          height: 1.35,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ]);
+                          }
+                        }
+
+                        return Stack(
+                          children: [
+                            Positioned.fill(
+                              child: CustomPaint(
+                                painter: Model3DPainter(
+                                  rx: _rx,
+                                  ry: _ry,
+                                  baseAngle: baseAngle,
+                                  scale: _scale * 2.1,
+                                  pulse: _pulse,
+                                  assetId: assetId,
+                                  showGrid: _showGrid,
+                                  primaryColor: Theme.of(context).colorScheme.primary,
+                                  secondaryColor: Theme.of(context).colorScheme.secondary,
+                                ),
+                              ),
+                            ),
+                            ...hotspots,
+                          ],
+                        );
+                      },
                     );
                   },
                 ),
@@ -224,7 +580,7 @@ class _ARViewerScreenState extends State<ARViewerScreen> with SingleTickerProvid
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: const Text(
-                  'Seret untuk memutar objek • Cubit untuk memperbesar',
+                  'Ketuk pin untuk detail • Seret untuk memutar • Cubit untuk memperbesar',
                   style: TextStyle(color: Colors.white70, fontSize: 10),
                   textAlign: TextAlign.center,
                 ),
@@ -240,7 +596,7 @@ class _ARViewerScreenState extends State<ARViewerScreen> with SingleTickerProvid
               mainAxisSize: MainAxisSize.min,
               children: [
                 FloatingActionButton.small(
-                  heroTag: 'zoom_in',
+                  heroTag: 'zoom_in_ar',
                   backgroundColor: Colors.black87,
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
@@ -269,7 +625,7 @@ class _ARViewerScreenState extends State<ARViewerScreen> with SingleTickerProvid
                 ),
                 const SizedBox(height: 12),
                 FloatingActionButton.small(
-                  heroTag: 'zoom_out',
+                  heroTag: 'zoom_out_ar',
                   backgroundColor: Colors.black87,
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
@@ -293,6 +649,7 @@ class _ARViewerScreenState extends State<ARViewerScreen> with SingleTickerProvid
             left: 20,
             right: 20,
             child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -334,54 +691,214 @@ class _ARViewerScreenState extends State<ARViewerScreen> with SingleTickerProvid
                   ],
                 ),
                 const SizedBox(height: 16),
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.black87,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: Colors.white12),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        assetId == 'heart'
-                            ? Icons.favorite
-                            : assetId == 'dna_helix'
-                                ? Icons.bubble_chart
-                                : Icons.science,
-                        color: Theme.of(context).colorScheme.primary,
-                        size: 32,
-                      ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              _getAssetTitle(assetId),
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 15,
+
+                // Switch dynamically between default overview card and the active pin description card!
+                AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 300),
+                  child: _selectedPart == null
+                      ? Container(
+                          key: const ValueKey('general_card'),
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.black87,
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: Colors.white12),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                assetId == 'heart'
+                                    ? Icons.favorite
+                                    : assetId == 'dna_helix'
+                                        ? Icons.bubble_chart
+                                        : Icons.science,
+                                color: Theme.of(context).colorScheme.primary,
+                                size: 32,
                               ),
-                            ),
-                            Text(
-                              _getAssetSub(assetId),
-                              style: const TextStyle(
-                                color: Colors.white54,
-                                fontSize: 11,
+                              const SizedBox(width: 14),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      _getAssetTitle(assetId),
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 15,
+                                      ),
+                                    ),
+                                    Text(
+                                      _getAssetSub(assetId),
+                                      style: const TextStyle(
+                                        color: Colors.white54,
+                                        fontSize: 11,
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
+                            ],
+                          ),
+                        )
+                      : Container(
+                          key: ValueKey(_selectedPart),
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withOpacity(0.9),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: _getPartColor(_selectedPart!),
+                              width: 1.5,
                             ),
-                          ],
+                            boxShadow: [
+                              BoxShadow(
+                                color: _getPartColor(_selectedPart!).withOpacity(0.3),
+                                blurRadius: 12,
+                                spreadRadius: 1,
+                              ),
+                            ],
+                          ),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Icon(
+                                _getPartIcon(_selectedPart!),
+                                color: _getPartColor(_selectedPart!),
+                                size: 28,
+                              ),
+                              const SizedBox(width: 14),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      _getPartTitle(_selectedPart!),
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    Text(
+                                      _getPartDescription(_selectedPart!),
+                                      style: const TextStyle(
+                                        color: Colors.white70,
+                                        fontSize: 11.5,
+                                        height: 1.4,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              GestureDetector(
+                                onTap: () => setState(() => _selectedPart = null),
+                                child: const Icon(
+                                  Icons.close,
+                                  color: Colors.white54,
+                                  size: 20,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
                 ),
               ],
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildCameraOverlay() {
+    if (!_cameraInitialized) {
+      return Container(
+        color: Colors.black,
+        child: const Center(
+          child: CircularProgressIndicator(color: Colors.blueAccent),
+        ),
+      );
+    }
+
+    if (_cameraError != null) {
+      return Container(
+        color: Colors.black,
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Text(
+              'Akses kamera gagal: $_cameraError\nSilakan aktifkan izin kamera atau jalankan pada HTTPS/localhost.',
+              style: const TextStyle(color: Colors.white70, fontSize: 12),
+              textAlign: TextAlign.center,
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Stack(
+      children: [
+        Positioned.fill(
+          child: kIsWeb
+              ? buildWebcamPreview(
+                  context: context,
+                  onCaptured: (_) {},
+                  onError: (err) {
+                    if (mounted) {
+                      setState(() {
+                        _cameraError = err;
+                      });
+                    }
+                  },
+                  scanMode: false,
+                )
+              : (_cameraController != null && _cameraController!.value.isInitialized)
+                  ? CameraPreview(_cameraController!)
+                  : Container(color: Colors.black),
+        ),
+        Positioned.fill(
+          child: Container(
+            color: Colors.black.withOpacity(0.45),
+          ),
+        ),
+        Positioned.fill(
+          child: CustomPaint(
+            painter: GridBackgroundPainter(),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPulsingPin({required Color color}) {
+    return Container(
+      width: 24,
+      height: 24,
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.2),
+        shape: BoxShape.circle,
+        border: Border.all(color: color, width: 1.5),
+      ),
+      child: Center(
+        child: Container(
+          width: 8,
+          height: 8,
+          decoration: BoxDecoration(
+            color: color,
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: color,
+                blurRadius: 6,
+                spreadRadius: 2,
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -398,6 +915,70 @@ class _ARViewerScreenState extends State<ARViewerScreen> with SingleTickerProvid
     if (assetId == 'dna_helix') return 'Menampilkan kode ikatan basa nitrogen A-T / C-G.';
     if (assetId == 'water_molecule') return 'Menampilkan sudut kovalen molekul air sebesar 104.5°.';
     return 'Menampilkan orbit elektron dengan tingkat energi Bohr.';
+  }
+
+  String _getPartTitle(String part) {
+    switch (part) {
+      case 'nucleus': return 'Inti Atom (Nucleus)';
+      case 'electron': return 'Elektron Bermuatan (-)';
+      case 'orbit': return 'Lintasan / Orbit Bohr';
+      case 'aorta': return 'Aorta Utama';
+      case 'myocardium': return 'Otot Jantung (Myocardium)';
+      case 'valve': return 'Katup Jantung (Valve)';
+      case 'backbone': return 'Rantai Fosfat (Backbone)';
+      case 'basepair': return 'Pasangan Basa Nitrogen';
+      case 'oxygen': return 'Atom Oksigen (O)';
+      case 'hydrogen': return 'Atom Hidrogen (H)';
+      default: return 'Detail Bagian';
+    }
+  }
+
+  String _getPartDescription(String part) {
+    switch (part) {
+      case 'nucleus': return 'Pusat atom yang padat, terdiri atas Proton bermuatan positif (+) dan Neutron yang netral.';
+      case 'electron': return 'Partikel elementer bermuatan negatif (-) yang mengitari inti pada tingkat energi tertentu.';
+      case 'orbit': return 'Jalur stasioner melingkar tempat elektron mengitari inti tanpa memancarkan radiasi.';
+      case 'aorta': return 'Pembuluh darah arteri terbesar yang mengalirkan darah kaya oksigen dari bilik kiri ke seluruh tubuh.';
+      case 'myocardium': return 'Lapisan otot tebal di dinding jantung yang berkontraksi untuk memompa darah.';
+      case 'valve': return 'Pintu searah yang mencegah darah mengalir kembali ke ruang sebelumnya saat jantung memompa.';
+      case 'backbone': return 'Rantai samping gula fosfat yang membentuk struktur spiral penopang rantai ganda DNA.';
+      case 'basepair': return 'Pasangan basa nitrogen kovalen A-T (Adenin-Timin) dan C-G (Sitosin-Guanin) pembawa kode genetik.';
+      case 'oxygen': return 'Atom pusat elektronegatif (-) yang berikatan kovalen dengan dua atom hidrogen.';
+      case 'hydrogen': return 'Dua atom bermuatan parsial positif (+) yang berikatan dengan atom oksigen dengan sudut 104.5°.';
+      default: return '';
+    }
+  }
+
+  IconData _getPartIcon(String part) {
+    switch (part) {
+      case 'nucleus': return Icons.adjust;
+      case 'electron': return Icons.blur_on;
+      case 'orbit': return Icons.album_outlined;
+      case 'aorta': return Icons.favorite;
+      case 'myocardium': return Icons.fitness_center;
+      case 'valve': return Icons.door_sliding;
+      case 'backbone': return Icons.linear_scale;
+      case 'basepair': return Icons.compare_arrows;
+      case 'oxygen': return Icons.circle;
+      case 'hydrogen': return Icons.circle_outlined;
+      default: return Icons.info;
+    }
+  }
+
+  Color _getPartColor(String part) {
+    switch (part) {
+      case 'nucleus': return Colors.redAccent;
+      case 'electron': return Colors.yellowAccent;
+      case 'orbit': return Colors.white70;
+      case 'aorta': return Colors.redAccent;
+      case 'myocardium': return Colors.pinkAccent;
+      case 'valve': return Colors.white70;
+      case 'backbone': return Colors.blueAccent;
+      case 'basepair': return Colors.orangeAccent;
+      case 'oxygen': return Colors.redAccent;
+      case 'hydrogen': return Colors.white;
+      default: return Colors.blueAccent;
+    }
   }
 
   Widget _buildToggleBtn({
@@ -437,12 +1018,6 @@ class _ARViewerScreenState extends State<ARViewerScreen> with SingleTickerProvid
           right: !left ? const BorderSide(color: Colors.white54, width: thickness) : BorderSide.none,
         ),
       ),
-    );
-  }
-
-  Widget _buildCameraOverlay() {
-    return CustomPaint(
-      painter: GridBackgroundPainter(),
     );
   }
 }
@@ -584,7 +1159,6 @@ class Model3DPainter extends CustomPainter {
       ..color = primaryColor.withOpacity(0.2)
       ..strokeWidth = 1.0;
 
-    final center = Offset(size.width / 2, size.height / 2 + 100);
     const gridCount = 5;
     const step = 40.0;
 
@@ -628,12 +1202,12 @@ class Model3DPainter extends CustomPainter {
       const ptCount = 16;
       
       for (int j = 0; j < ptCount; j++) {
-        final phi = 2 * math.pi * j / ptCount;
+        final jAngle = 2 * math.pi * j / ptCount;
         
         // Stylize horizontal cross section to have a heart indent in front/back
-        final double indent = 1.0 - 0.25 * math.cos(phi).abs();
-        final x = r * math.cos(phi) * indent;
-        final z = r * math.sin(phi) * indent;
+        final double indent = 1.0 - 0.25 * math.cos(jAngle).abs();
+        final x = r * math.cos(jAngle) * indent;
+        final z = r * math.sin(jAngle) * indent;
 
         // Apply slight offset to make Y axis match medical heart slant
         final double xOffset = -h * 0.15;
@@ -765,7 +1339,7 @@ class Model3DPainter extends CustomPainter {
     canvas.drawLine(oxygenPos, h1Pos, bondPaint);
     canvas.drawLine(oxygenPos, h2Pos, bondPaint);
 
-    // Draw Oxygen Atom (Big Red/Blue)
+    // Draw Oxygen Atom (Big Red)
     final oPaint = Paint()
       ..color = Colors.redAccent
       ..style = PaintingStyle.fill;
@@ -861,11 +1435,6 @@ class Model3DPainter extends CustomPainter {
     }
 
     // 3. Draw moving Electrons as glowing dots
-    final electronPaint = Paint()
-      ..color = Colors.yellowAccent
-      ..style = PaintingStyle.fill;
-
-    // Animate angle over time
     final electronAngle = baseAngle * 2.0; // Rotate electrons twice as fast
     
     // Electron 1
