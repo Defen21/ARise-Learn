@@ -200,6 +200,212 @@ class _ScanResultScreenState extends State<ScanResultScreen> with SingleTickerPr
     );
   }
 
+  // ══════════ Dynamic Model Helpers ══════════
+  String _getAssetTitle(String? assetId) {
+    switch (assetId) {
+      case 'heart': return '3D HUMAN HEART MODEL';
+      case 'dna_helix': return '3D DNA DOUBLE HELIX';
+      case 'water_molecule': return '3D H2O MOLECULE';
+      default: return 'ATOM BOHR';
+    }
+  }
+
+  String _getAssetHintText(String? assetId) {
+    switch (assetId) {
+      case 'heart': return 'Ketuk pin (aorta, otot, katup) untuk detail • Seret untuk putar';
+      case 'dna_helix': return 'Ketuk pin (backbone, basepair) untuk detail • Seret untuk putar';
+      case 'water_molecule': return 'Ketuk pin (oksigen, hidrogen) untuk detail • Seret untuk putar';
+      default: return 'Ketuk pin (inti, elektron, orbit) untuk detail • Seret untuk putar';
+    }
+  }
+
+  String _getPartTitle(String part) {
+    switch (part) {
+      case 'nucleus': return 'Inti Atom (Nucleus)';
+      case 'electron': return 'Elektron Bermuatan (-)';
+      case 'orbit': return 'Lintasan / Orbit Bohr';
+      case 'aorta': return 'Aorta Utama';
+      case 'myocardium': return 'Otot Jantung (Myocardium)';
+      case 'valve': return 'Katup Jantung (Valve)';
+      case 'backbone': return 'Rantai Fosfat (Backbone)';
+      case 'basepair': return 'Pasangan Basa Nitrogen';
+      case 'oxygen': return 'Atom Oksigen (O)';
+      case 'hydrogen': return 'Atom Hidrogen (H)';
+      default: return 'Detail Bagian';
+    }
+  }
+
+  String _getPartDescription(String part) {
+    switch (part) {
+      case 'nucleus': return 'Pusat atom yang padat, terdiri atas Proton bermuatan positif (+) dan Neutron yang netral.';
+      case 'electron': return 'Partikel elementer bermuatan negatif (-) yang mengitari inti pada tingkat energi tertentu.';
+      case 'orbit': return 'Jalur stasioner melingkar tempat elektron mengitari inti tanpa memancarkan radiasi.';
+      case 'aorta': return 'Pembuluh darah arteri terbesar yang mengalirkan darah kaya oksigen dari bilik kiri ke seluruh tubuh.';
+      case 'myocardium': return 'Lapisan otot tebal di dinding jantung yang berkontraksi untuk memompa darah.';
+      case 'valve': return 'Pintu searah yang mencegah darah mengalir kembali ke ruang sebelumnya saat jantung memompa.';
+      case 'backbone': return 'Rantai samping gula fosfat yang membentuk struktur spiral penopang rantai ganda DNA.';
+      case 'basepair': return 'Pasangan basa nitrogen kovalen A-T (Adenin-Timin) dan C-G (Sitosin-Guanin) pembawa kode genetik.';
+      case 'oxygen': return 'Atom pusat elektronegatif (-) yang berikatan kovalen dengan dua atom hidrogen.';
+      case 'hydrogen': return 'Dua atom bermuatan parsial positif (+) yang berikatan dengan atom oksigen dengan sudut 104.5°.';
+      default: return '';
+    }
+  }
+
+  IconData _getPartIcon(String part) {
+    switch (part) {
+      case 'nucleus': return Icons.adjust;
+      case 'electron': return Icons.blur_on;
+      case 'orbit': return Icons.album_outlined;
+      case 'aorta': return Icons.favorite;
+      case 'myocardium': return Icons.fitness_center;
+      case 'valve': return Icons.door_sliding;
+      case 'backbone': return Icons.linear_scale;
+      case 'basepair': return Icons.compare_arrows;
+      case 'oxygen': return Icons.circle;
+      case 'hydrogen': return Icons.circle_outlined;
+      default: return Icons.info;
+    }
+  }
+
+  Color _getPartColor(String part) {
+    switch (part) {
+      case 'nucleus': return Colors.redAccent;
+      case 'electron': return Colors.yellowAccent;
+      case 'orbit': return Colors.white70;
+      case 'aorta': return Colors.redAccent;
+      case 'myocardium': return Colors.pinkAccent;
+      case 'valve': return Colors.white70;
+      case 'backbone': return Colors.blueAccent;
+      case 'basepair': return Colors.orangeAccent;
+      case 'oxygen': return Colors.redAccent;
+      case 'hydrogen': return Colors.white;
+      default: return Colors.blueAccent;
+    }
+  }
+
+  List<Widget> _buildDynamicHotspots(String assetId, Size canvasSize, double electronAngle) {
+    final List<Widget> hotspots = [];
+
+    if (assetId == 'atom' || assetId == 'general') {
+      const radiusX = 85.0;
+      const radiusZ = 40.0;
+      final nucleusOffset = projectPoint(0, 0, 0, canvasSize);
+      final orbitOffset = projectPoint(radiusX, 0, 0, canvasSize);
+      final e1x = radiusX * math.cos(electronAngle);
+      final e1z = radiusZ * math.sin(electronAngle);
+      final electronOffset = projectPoint(e1x, 0, e1z, canvasSize);
+
+      hotspots.addAll([
+        Positioned(
+          left: nucleusOffset.dx - 12, top: nucleusOffset.dy - 12,
+          child: GestureDetector(
+            onTap: () => setState(() => _selectedPart = 'nucleus'),
+            child: _buildPulsingPin(color: Colors.redAccent),
+          ),
+        ),
+        Positioned(
+          left: electronOffset.dx - 12, top: electronOffset.dy - 12,
+          child: GestureDetector(
+            onTap: () => setState(() => _selectedPart = 'electron'),
+            child: _buildPulsingPin(color: Colors.yellowAccent),
+          ),
+        ),
+        Positioned(
+          left: orbitOffset.dx - 12, top: orbitOffset.dy - 12,
+          child: GestureDetector(
+            onTap: () => setState(() => _selectedPart = 'orbit'),
+            child: _buildPulsingPin(color: Colors.white70),
+          ),
+        ),
+      ]);
+    } else if (assetId == 'heart') {
+      final aortaOffset = projectPoint(-20, -70, 0, canvasSize);
+      final muscleOffset = projectPoint(0, 70, 0, canvasSize);
+      final valveOffset = projectPoint(0, 0, 0, canvasSize);
+
+      hotspots.addAll([
+        Positioned(
+          left: aortaOffset.dx - 12, top: aortaOffset.dy - 12,
+          child: GestureDetector(
+            onTap: () => setState(() => _selectedPart = 'aorta'),
+            child: _buildPulsingPin(color: Colors.redAccent),
+          ),
+        ),
+        Positioned(
+          left: muscleOffset.dx - 12, top: muscleOffset.dy - 12,
+          child: GestureDetector(
+            onTap: () => setState(() => _selectedPart = 'myocardium'),
+            child: _buildPulsingPin(color: Colors.pinkAccent),
+          ),
+        ),
+        Positioned(
+          left: valveOffset.dx - 12, top: valveOffset.dy - 12,
+          child: GestureDetector(
+            onTap: () => setState(() => _selectedPart = 'valve'),
+            child: _buildPulsingPin(color: Colors.white70),
+          ),
+        ),
+      ]);
+    } else if (assetId == 'dna_helix') {
+      final backboneOffset = projectPoint(45.0, -40, 0, canvasSize);
+      final basepairOffset = projectPoint(0, 20, 0, canvasSize);
+
+      hotspots.addAll([
+        Positioned(
+          left: backboneOffset.dx - 12, top: backboneOffset.dy - 12,
+          child: GestureDetector(
+            onTap: () => setState(() => _selectedPart = 'backbone'),
+            child: _buildPulsingPin(color: Colors.blueAccent),
+          ),
+        ),
+        Positioned(
+          left: basepairOffset.dx - 12, top: basepairOffset.dy - 12,
+          child: GestureDetector(
+            onTap: () => setState(() => _selectedPart = 'basepair'),
+            child: _buildPulsingPin(color: Colors.orangeAccent),
+          ),
+        ),
+      ]);
+    } else if (assetId == 'water_molecule') {
+      const bondLen = 65.0;
+      const bondAngle = 104.5 * math.pi / 180.0;
+      final h1x = bondLen * math.cos(bondAngle / 2);
+      final h1y = bondLen * math.sin(bondAngle / 2);
+      final h2x = -bondLen * math.cos(bondAngle / 2);
+      final h2y = bondLen * math.sin(bondAngle / 2);
+
+      final oOffset = projectPoint(0, -20, 0, canvasSize);
+      final h1Offset = projectPoint(h1x, h1y - 20, 0, canvasSize);
+      final h2Offset = projectPoint(h2x, h2y - 20, 0, canvasSize);
+
+      hotspots.addAll([
+        Positioned(
+          left: oOffset.dx - 12, top: oOffset.dy - 12,
+          child: GestureDetector(
+            onTap: () => setState(() => _selectedPart = 'oxygen'),
+            child: _buildPulsingPin(color: Colors.redAccent),
+          ),
+        ),
+        Positioned(
+          left: h1Offset.dx - 12, top: h1Offset.dy - 12,
+          child: GestureDetector(
+            onTap: () => setState(() => _selectedPart = 'hydrogen'),
+            child: _buildPulsingPin(color: Colors.white),
+          ),
+        ),
+        Positioned(
+          left: h2Offset.dx - 12, top: h2Offset.dy - 12,
+          child: GestureDetector(
+            onTap: () => setState(() => _selectedPart = 'hydrogen'),
+            child: _buildPulsingPin(color: Colors.white),
+          ),
+        ),
+      ]);
+    }
+
+    return hotspots;
+  }
+
   @override
   Widget build(BuildContext context) {
     final apiService = context.watch<ApiService>();
@@ -294,18 +500,9 @@ class _ScanResultScreenState extends State<ScanResultScreen> with SingleTickerPr
                               child: AnimatedBuilder(
                                 animation: _animationController,
                                 builder: (context, child) {
+                                  final currentAssetId = result.asset3dUrl ?? 'atom';
                                   final baseAngle = _autoRotate ? _animationController.value * 2 * math.pi : 0.0;
                                   final electronAngle = baseAngle * 2.0;
-                                  const radiusX = 85.0;
-                                  const radiusZ = 40.0;
-
-                                  // Calculate projected positions in real time
-                                  final nucleusOffset = projectPoint(0, 0, 0, canvasSize);
-                                  final orbitOffset = projectPoint(radiusX, 0, 0, canvasSize);
-
-                                  final e1x = radiusX * math.cos(electronAngle);
-                                  final e1z = radiusZ * math.sin(electronAngle);
-                                  final electronOffset = projectPoint(e1x, 0, e1z, canvasSize);
 
                                   return Stack(
                                     children: [
@@ -317,7 +514,7 @@ class _ScanResultScreenState extends State<ScanResultScreen> with SingleTickerPr
                                             baseAngle: baseAngle,
                                             scale: _scale * 2.3,
                                             pulse: _pulse,
-                                            assetId: 'atom',
+                                            assetId: currentAssetId,
                                             showGrid: _showGrid,
                                             primaryColor: Theme.of(context).colorScheme.primary,
                                             secondaryColor: Theme.of(context).colorScheme.secondary,
@@ -325,47 +522,8 @@ class _ScanResultScreenState extends State<ScanResultScreen> with SingleTickerPr
                                         ),
                                       ),
 
-                                      // Hotspot Pin: Nucleus
-                                      Positioned(
-                                        left: nucleusOffset.dx - 12,
-                                        top: nucleusOffset.dy - 12,
-                                        child: GestureDetector(
-                                          onTap: () {
-                                            setState(() {
-                                              _selectedPart = 'nucleus';
-                                            });
-                                          },
-                                          child: _buildPulsingPin(color: Colors.redAccent),
-                                        ),
-                                      ),
-
-                                      // Hotspot Pin: Electron
-                                      Positioned(
-                                        left: electronOffset.dx - 12,
-                                        top: electronOffset.dy - 12,
-                                        child: GestureDetector(
-                                          onTap: () {
-                                            setState(() {
-                                              _selectedPart = 'electron';
-                                            });
-                                          },
-                                          child: _buildPulsingPin(color: Colors.yellowAccent),
-                                        ),
-                                      ),
-
-                                      // Hotspot Pin: Orbit
-                                      Positioned(
-                                        left: orbitOffset.dx - 12,
-                                        top: orbitOffset.dy - 12,
-                                        child: GestureDetector(
-                                          onTap: () {
-                                            setState(() {
-                                              _selectedPart = 'orbit';
-                                            });
-                                          },
-                                          child: _buildPulsingPin(color: Colors.white70),
-                                        ),
-                                      ),
+                                      // Dynamic hotspot pins based on model type
+                                      ..._buildDynamicHotspots(currentAssetId, canvasSize, electronAngle),
                                     ],
                                   );
                                 },
@@ -387,12 +545,12 @@ class _ScanResultScreenState extends State<ScanResultScreen> with SingleTickerPr
                             ),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
-                              children: const [
-                                Icon(Icons.circle, color: Colors.greenAccent, size: 6),
-                                SizedBox(width: 6),
+                              children: [
+                                const Icon(Icons.circle, color: Colors.greenAccent, size: 6),
+                                const SizedBox(width: 6),
                                 Text(
-                                  'PROYEKSI 3D: ATOM BOHR',
-                                  style: TextStyle(
+                                  'PROYEKSI 3D: ${_getAssetTitle(result.asset3dUrl)}',
+                                  style: const TextStyle(
                                     color: Colors.white,
                                     fontWeight: FontWeight.bold,
                                     fontSize: 9,
@@ -408,9 +566,9 @@ class _ScanResultScreenState extends State<ScanResultScreen> with SingleTickerPr
                         Positioned(
                           bottom: 12,
                           left: 16,
-                          child: const Text(
-                            'Ketuk pin (inti, elektron, orbit) untuk detail • Seret untuk putar',
-                            style: TextStyle(color: Colors.white54, fontSize: 9),
+                          child: Text(
+                            _getAssetHintText(result.asset3dUrl),
+                            style: const TextStyle(color: Colors.white54, fontSize: 9),
                           ),
                         ),
 
@@ -425,22 +583,24 @@ class _ScanResultScreenState extends State<ScanResultScreen> with SingleTickerPr
                               decoration: BoxDecoration(
                                 color: Colors.black.withOpacity(0.85),
                                 borderRadius: BorderRadius.circular(16),
-                                border: Border.all(color: Colors.white24, width: 1),
+                                border: Border.all(
+                                  color: _getPartColor(_selectedPart!).withOpacity(0.5),
+                                  width: 1.5,
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: _getPartColor(_selectedPart!).withOpacity(0.15),
+                                    blurRadius: 8,
+                                    spreadRadius: 1,
+                                  ),
+                                ],
                               ),
                               child: Row(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Icon(
-                                    _selectedPart == 'nucleus'
-                                        ? Icons.adjust
-                                        : _selectedPart == 'electron'
-                                            ? Icons.blur_on
-                                            : Icons.album_outlined,
-                                    color: _selectedPart == 'nucleus'
-                                        ? Colors.redAccent
-                                        : _selectedPart == 'electron'
-                                            ? Colors.yellowAccent
-                                            : Colors.white,
+                                    _getPartIcon(_selectedPart!),
+                                    color: _getPartColor(_selectedPart!),
                                     size: 20,
                                   ),
                                   const SizedBox(width: 10),
@@ -450,11 +610,7 @@ class _ScanResultScreenState extends State<ScanResultScreen> with SingleTickerPr
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
                                         Text(
-                                          _selectedPart == 'nucleus'
-                                              ? 'Inti Atom (Nucleus)'
-                                              : _selectedPart == 'electron'
-                                                  ? 'Elektron Bermuatan (-)'
-                                                  : 'Lintasan / Orbit Bohr',
+                                          _getPartTitle(_selectedPart!),
                                           style: const TextStyle(
                                             color: Colors.white,
                                             fontWeight: FontWeight.bold,
@@ -463,11 +619,7 @@ class _ScanResultScreenState extends State<ScanResultScreen> with SingleTickerPr
                                         ),
                                         const SizedBox(height: 3),
                                         Text(
-                                          _selectedPart == 'nucleus'
-                                              ? 'Pusat atom yang padat, terdiri atas Proton bermuatan positif (+) dan Neutron yang netral.'
-                                              : _selectedPart == 'electron'
-                                                  ? 'Partikel elementer bermuatan negatif (-) yang mengitari inti pada tingkat energi tertentu.'
-                                                  : 'Jalur stasioner melingkar tempat elektron mengitari inti tanpa memancarkan radiasi.',
+                                          _getPartDescription(_selectedPart!),
                                           style: const TextStyle(
                                             color: Colors.white70,
                                             fontSize: 10.5,

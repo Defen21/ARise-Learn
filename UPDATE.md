@@ -33,6 +33,25 @@ ARise-Learn/
 
 ---
 
+### 🔬 Feat: Dynamic 3D Models di Halaman Hasil Scan
+**Tanggal:** 18 Juni 2026, 20:55 WIB
+
+**Deskripsi:**
+Sebelumnya viewport 3D di halaman hasil scan selalu menampilkan model Atom Bohr, meskipun AI menganalisis topik lain seperti jantung, DNA, atau molekul H2O. Sekarang model 3D ditampilkan secara dinamis berdasarkan hasil analisis AI (`asset_3d_hint`).
+
+**Perubahan:**
+- 🧬 **Model 3D dinamis** — Viewport sekarang menampilkan model Heart, DNA Helix, Water Molecule, atau Atom sesuai `result.asset3dUrl`
+- 📌 **Hotspot pins dinamis** — Pin interaktif berubah sesuai model (aorta/myocardium/valve untuk jantung, backbone/basepair untuk DNA, oxygen/hydrogen untuk H2O, nucleus/electron/orbit untuk atom)
+- 💬 **Tooltip kartu dinamis** — Klik pin menampilkan penjelasan spesifik untuk setiap bagian model
+- 🏷️ **HUD label dinamis** — Banner atas viewport menampilkan nama model yang benar (misalnya "PROYEKSI 3D: 3D HUMAN HEART MODEL")
+- 📝 **Hint text dinamis** — Teks petunjuk di bawah viewport berubah sesuai model aktif
+- ✨ **Glow border pada overlay** — Kartu penjelasan sekarang memiliki border berwarna dan efek glow sesuai warna bagian yang dipilih
+
+**File Dimodifikasi:**
+- `mobile/lib/screens/scan_result_screen.dart` — +210 baris helper methods, refactor viewport rendering
+
+---
+
 ### 🎨 `7294010` — Style: Premium UI Overhaul
 **Tanggal:** 18 Juni 2026, 20:48 WIB
 
