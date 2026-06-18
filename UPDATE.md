@@ -33,6 +33,35 @@ ARise-Learn/
 
 ---
 
+### 🎨 `7294010` — Style: Premium UI Overhaul
+**Tanggal:** 18 Juni 2026, 20:48 WIB
+
+**Perubahan UI Major:**
+- 🌌 **Animated background orbs** — efek lingkaran gradient yang "bernapas" di dark mode
+- ✨ **Gradient logo header** — header baru dengan logo ARise Learn bergradient, ShaderMask teks
+- 🃏 **Scanner Hero Card** — kartu scanner utama dengan animasi breathing gradient yang hidup
+- 📊 **Stats panel redesign** — panel statistik dengan ikon bergradient dan divider
+- 📜 **History cards** — kartu riwayat dengan gradient accent bar dan ikon berwarna
+- 🎯 **Floating catalog cards** — kartu model 3D dengan animasi melayang (float), dual-color gradient ikon
+- 🎨 **Deep navy dark theme** — background `0x0B0F1A` yang lebih gelap dan premium
+- 🔄 **Animated theme toggle** — ikon tema berputar saat berganti mode
+- 📐 **Responsive layout** — center-constrained `maxWidth: 900` untuk tampilan desktop
+
+**File Dimodifikasi:**
+
+#### `mobile/lib/main.dart`
+- ✅ Dark background diperdalam ke `0x0B0F1A` (deep navy)
+- ✅ Menambahkan tertiary accent color (Cyan)
+- ✅ Card elevation diset 0 untuk look glassmorphic
+- ✅ Scaffold background light theme ke `0xFFF8FAFC`
+
+#### `mobile/lib/screens/home_screen.dart`
+- ✅ Rewrite total dengan arsitektur widget terpisah per section
+- ✅ 3 AnimationController: breath, shimmer, float
+- ✅ Background orbs, gradient header, floating cards
+
+---
+
 ### 🔧 `7881b1d` — Fix: Improve Groq API Error Handling
 **Tanggal:** 18 Juni 2026, 20:23 WIB
 
@@ -296,4 +325,4 @@ docker-compose up --build
 
 ---
 
-*Terakhir diperbarui: 18 Juni 2026, 20:31 WIB*
+*Terakhir diperbarui: 18 Juni 2026, 20:48 WIB*
