@@ -24,6 +24,7 @@ class _ARViewerScreenState extends State<ARViewerScreen> with SingleTickerProvid
   double _pulse = 1.0; // Heart beat pulse
 
   // Camera variables
+  bool _enableCamera = false; // Default: Virtual Mode (no camera open)
   CameraController? _cameraController;
   List<CameraDescription>? _cameras;
   bool _cameraInitialized = false;
@@ -38,7 +39,11 @@ class _ARViewerScreenState extends State<ARViewerScreen> with SingleTickerProvid
       duration: const Duration(seconds: 10),
     )..repeat();
 
-    _initCamera();
+    if (_enableCamera) {
+      _initCamera();
+    } else {
+      _cameraInitialized = true;
+    }
 
     // Pulse animation for heart or general breathing effect
     Timer.periodic(const Duration(milliseconds: 1000), (timer) {
@@ -71,7 +76,34 @@ class _ARViewerScreenState extends State<ARViewerScreen> with SingleTickerProvid
     });
   }
 
+  Future<void> _toggleCamera() async {
+    if (_enableCamera) {
+      if (_cameraController != null) {
+        await _cameraController!.dispose();
+        _cameraController = null;
+      }
+      setState(() {
+        _enableCamera = false;
+        _cameraError = null;
+        _cameraInitialized = true;
+      });
+    } else {
+      setState(() {
+        _enableCamera = true;
+        _cameraInitialized = false;
+        _cameraError = null;
+      });
+      await _initCamera();
+    }
+  }
+
   Future<void> _initCamera() async {
+    if (!_enableCamera) {
+      setState(() {
+        _cameraInitialized = true;
+      });
+      return;
+    }
     if (kIsWeb) {
       setState(() {
         _cameraInitialized = true;
@@ -651,44 +683,54 @@ class _ARViewerScreenState extends State<ARViewerScreen> with SingleTickerProvid
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    _buildToggleBtn(
-                      label: 'Kisi Grid',
-                      active: _showGrid,
-                      icon: Icons.grid_on,
-                      onPressed: () {
-                        setState(() {
-                          _showGrid = !_showGrid;
-                        });
-                      },
-                    ),
-                    const SizedBox(width: 8),
-                    _buildToggleBtn(
-                      label: _autoRotate ? 'Auto Putar' : 'Putar Mati',
-                      active: _autoRotate,
-                      icon: _autoRotate ? Icons.sync : Icons.sync_disabled,
-                      onPressed: () {
-                        setState(() {
-                          _autoRotate = !_autoRotate;
-                        });
-                      },
-                    ),
-                    const SizedBox(width: 8),
-                    _buildToggleBtn(
-                      label: 'Reset Sudut',
-                      active: false,
-                      icon: Icons.refresh,
-                      onPressed: () {
-                        setState(() {
-                          _rx = -0.5;
-                          _ry = 0.5;
-                          _scale = 1.0;
-                        });
-                      },
-                    ),
-                  ],
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      _buildToggleBtn(
+                        label: _enableCamera ? 'Kamera Off' : 'Kamera AR',
+                        active: _enableCamera,
+                        icon: _enableCamera ? Icons.videocam_off : Icons.videocam,
+                        onPressed: _toggleCamera,
+                      ),
+                      const SizedBox(width: 8),
+                      _buildToggleBtn(
+                        label: 'Kisi Grid',
+                        active: _showGrid,
+                        icon: Icons.grid_on,
+                        onPressed: () {
+                          setState(() {
+                            _showGrid = !_showGrid;
+                          });
+                        },
+                      ),
+                      const SizedBox(width: 8),
+                      _buildToggleBtn(
+                        label: _autoRotate ? 'Auto Putar' : 'Putar Mati',
+                        active: _autoRotate,
+                        icon: _autoRotate ? Icons.sync : Icons.sync_disabled,
+                        onPressed: () {
+                          setState(() {
+                            _autoRotate = !_autoRotate;
+                          });
+                        },
+                      ),
+                      const SizedBox(width: 8),
+                      _buildToggleBtn(
+                        label: 'Reset Sudut',
+                        active: false,
+                        icon: Icons.refresh,
+                        onPressed: () {
+                          setState(() {
+                            _rx = -0.5;
+                            _ry = 0.5;
+                            _scale = 1.0;
+                          });
+                        },
+                      ),
+                    ],
+                  ),
                 ),
                 const SizedBox(height: 16),
 
@@ -815,6 +857,32 @@ class _ARViewerScreenState extends State<ARViewerScreen> with SingleTickerProvid
   }
 
   Widget _buildCameraOverlay() {
+    if (!_enableCamera) {
+      return Stack(
+        children: [
+          Positioned.fill(
+            child: Container(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    Color(0xFF0F172A),
+                    Color(0xFF020617),
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+              ),
+            ),
+          ),
+          Positioned.fill(
+            child: CustomPaint(
+              painter: GridBackgroundPainter(),
+            ),
+          ),
+        ],
+      );
+    }
+
     if (!_cameraInitialized) {
       return Container(
         color: Colors.black,

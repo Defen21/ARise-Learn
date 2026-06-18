@@ -105,7 +105,7 @@ class RAGService:
             "Respond in this exact format:\n"
             "TOPIC: <subject topic>\n"
             "CONTENT: <extracted text or description>\n"
-            "3D_HINT: <suggested 3D model name for AR, or 'none'>"
+            "3D_HINT: <one of: 'water_molecule', 'dna_helix', 'heart', 'atom', or 'none'>"
         )
         if context:
             vision_prompt += f"\n\nAdditional context: This is from a {context} course."
@@ -124,8 +124,17 @@ class RAGService:
             elif line.startswith("CONTENT:"):
                 content = line.replace("CONTENT:", "").strip()
             elif line.startswith("3D_HINT:"):
-                hint = line.replace("3D_HINT:", "").strip()
-                asset_hint = hint if hint.lower() != "none" else None
+                hint = line.replace("3D_HINT:", "").strip().lower()
+                if "water" in hint or "h2o" in hint or "molecule" in hint and ("water" in hint or "h2o" in hint):
+                    asset_hint = "water_molecule"
+                elif "dna" in hint or "helix" in hint or "double helix" in hint:
+                    asset_hint = "dna_helix"
+                elif "heart" in hint or "jantung" in hint:
+                    asset_hint = "heart"
+                elif "atom" in hint or "bohr" in hint:
+                    asset_hint = "atom"
+                else:
+                    asset_hint = hint if hint != "none" else None
 
         # Step 2: Retrieve related academic material via RAG (if embeddings available)
         chunks = []

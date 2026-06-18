@@ -89,30 +89,36 @@ class _ScanResultScreenState extends State<ScanResultScreen> with SingleTickerPr
     super.dispose();
   }
 
-  List<TextSpan> _parseMarkdown(String text, BuildContext context, bool isDark) {
+  List<TextSpan> _parseMarkdown(String text, BuildContext context, bool isDark, {bool compact = false}) {
     final List<TextSpan> spans = [];
     final lines = text.split('\n');
     
     for (int i = 0; i < lines.length; i++) {
       final line = lines[i].trim();
       if (line.isEmpty) {
-        spans.add(const TextSpan(text: '\n'));
+        spans.add(TextSpan(text: compact ? '\n' : '\n\n'));
         continue;
       }
       
       if (line.startsWith('### ')) {
         spans.add(TextSpan(
-          text: '\n${line.substring(4)}\n\n',
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: Theme.of(context).colorScheme.primary,
-                fontSize: 16,
-              ),
+          text: compact ? '${line.substring(4)}\n' : '\n${line.substring(4)}\n\n',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: compact
+                ? (_selectedPart != null ? _getPartColor(_selectedPart!) : Colors.white)
+                : Theme.of(context).colorScheme.primary,
+            fontSize: compact ? 11.0 : 16.0,
+          ),
         ));
       } else if (line.startsWith('**') && line.endsWith('**')) {
         spans.add(TextSpan(
           text: '${line.replaceAll('**', '')}\n',
-          style: const TextStyle(fontWeight: FontWeight.bold),
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: compact ? 10.5 : 13.5,
+            color: compact ? Colors.white : (isDark ? Colors.white : Colors.black),
+          ),
         ));
       } else {
         // Simple inline bold parser
@@ -123,13 +129,13 @@ class _ScanResultScreenState extends State<ScanResultScreen> with SingleTickerPr
             text: parts[j],
             style: TextStyle(
               fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
-              fontSize: 13.5,
-              height: 1.5,
-              color: isDark ? Colors.grey[300] : Colors.grey[800],
+              fontSize: compact ? 10.5 : 13.5,
+              height: compact ? 1.3 : 1.5,
+              color: compact ? Colors.white70 : (isDark ? Colors.grey[300] : Colors.grey[800]),
             ),
           ));
         }
-        spans.add(const TextSpan(text: '\n\n'));
+        spans.add(TextSpan(text: compact ? '\n' : '\n\n'));
       }
     }
     return spans;
@@ -219,6 +225,42 @@ class _ScanResultScreenState extends State<ScanResultScreen> with SingleTickerPr
     }
   }
 
+  Offset? _getSelectedPartOffset(String part, String assetId, Size canvasSize) {
+    if (assetId == 'atom' || assetId == 'general') {
+      if (part == 'nucleus') return projectPoint(0, 0, 0, canvasSize);
+      if (part == 'electron') {
+        final baseAngle = _autoRotate ? _animationController.value * 2 * math.pi : 0.0;
+        final electronAngle = baseAngle * 2.0;
+        const radiusX = 85.0;
+        const radiusZ = 40.0;
+        final e1x = radiusX * math.cos(electronAngle);
+        final e1z = radiusZ * math.sin(electronAngle);
+        return projectPoint(e1x, 0, e1z, canvasSize);
+      }
+      if (part == 'orbit') {
+        const radiusX = 85.0;
+        return projectPoint(radiusX, 0, 0, canvasSize);
+      }
+    } else if (assetId == 'heart') {
+      if (part == 'aorta') return projectPoint(-20, -70, 0, canvasSize);
+      if (part == 'myocardium') return projectPoint(0, 70, 0, canvasSize);
+      if (part == 'valve') return projectPoint(0, 0, 0, canvasSize);
+    } else if (assetId == 'dna_helix') {
+      if (part == 'backbone') return projectPoint(45.0, -40, 0, canvasSize);
+      if (part == 'basepair') return projectPoint(0, 20, 0, canvasSize);
+    } else if (assetId == 'water_molecule') {
+      const bondLen = 65.0;
+      const bondAngle = 104.5 * math.pi / 180.0;
+      if (part == 'oxygen') return projectPoint(0, -20, 0, canvasSize);
+      if (part == 'hydrogen') {
+        final h1x = bondLen * math.cos(bondAngle / 2);
+        final h1y = bondLen * math.sin(bondAngle / 2);
+        return projectPoint(h1x, h1y - 20, 0, canvasSize);
+      }
+    }
+    return null;
+  }
+
   String _getPartTitle(String part) {
     switch (part) {
       case 'nucleus': return 'Inti Atom (Nucleus)';
@@ -247,6 +289,42 @@ class _ScanResultScreenState extends State<ScanResultScreen> with SingleTickerPr
       case 'basepair': return 'Pasangan basa nitrogen kovalen A-T (Adenin-Timin) dan C-G (Sitosin-Guanin) pembawa kode genetik.';
       case 'oxygen': return 'Atom pusat elektronegatif (-) yang berikatan kovalen dengan dua atom hidrogen.';
       case 'hydrogen': return 'Dua atom bermuatan parsial positif (+) yang berikatan dengan atom oksigen dengan sudut 104.5°.';
+      default: return '';
+    }
+  }
+
+  String _getPartDetailedDescription(String part) {
+    switch (part) {
+      case 'nucleus':
+        return '### **Struktur & Massa**\nTerdiri atas proton bermuatan positif (+1e) dan neutron netral. Meskipun ukurannya 100.000 kali lebih kecil dari atom keseluruhan, inti atom menyimpan **99.9% dari seluruh massa atom**.\n\n'
+            '### **Gaya Ikat Nuklir**\nDiikat oleh **Gaya Nuklir Kuat**, salah satu gaya fundamental alam semesta yang bekerja pada jarak sangat pendek untuk mengalahkan gaya tolak-menolak elektrostatik alami antar proton.';
+      case 'electron':
+        return '### **Karakteristik Fisik**\nPartikel subatomik bermuatan negatif (-1e) dan bermassa sangat kecil (~9.11 × 10^-31 kg, setara 1/1836 massa proton). Elektron tidak memiliki struktur internal yang diketahui.\n\n'
+            '### **Fungsi Kimiawi**\nBerada pada tingkat energi terluar (kulit valensi) untuk menentukan **ikatan kimia** (kovalen, ionik, logam), reaksi, hantaran arus listrik, dan sifat kemagnetan materi.';
+      case 'orbit':
+        return '### **Kuantisasi Energi**\nLintasan melingkar diskret di mana elektron bergerak tanpa memancarkan radiasi elektromagnetik. Tingkat energi di setiap orbit terkuantisasi penuh berdasarkan bilangan kuantum utama (n = 1, 2, 3...).\n\n'
+            '### **Efek Transisi Foton**\nElektron berpindah orbit dengan menyerap energi foton (ke tingkat lebih tinggi/eksitasi) atau memancarkan foton dengan panjang gelombang spesifik (ke tingkat lebih rendah), membentuk **spektrum garis atom**.';
+      case 'aorta':
+        return '### **Rute & Dimensi**\nArteri terbesar manusia dengan diameter mencapai 2.5 - 3.5 cm. Mengalir dari bilik (ventrikel) kiri jantung, melengkung ke atas (arcus aorta), lalu turun ke dada dan perut.\n\n'
+            '### **Fungsi & Adaptasi Tekanan**\nMenyalurkan darah kaya oksigen ke seluruh sistem sirkulasi tubuh. Memiliki dinding berotot tebal dan serat elastis tinggi untuk **meredam fluktuasi tekanan darah tinggi (sistolik)** saat ventrikel memompa.';
+      case 'myocardium':
+        return '### **Karakteristik Jaringan**\nLapisan otot tengah jantung yang tersusun atas sel kardiomiosit khusus. Bekerja secara otomatis (involunter) dan berirama tanpa lelah sepanjang hidup karena kaya akan organel penghasil energi (mitokondria).\n\n'
+            '### **Sinkronisasi Impuls**\nSel kardiomiosit dihubungkan oleh diskus interkalaris dengan *gap junction*. Hal ini memungkinkan **penyebaran impuls listrik yang sangat cepat**, membuat seluruh serambi atau bilik berkontraksi serentak.';
+      case 'valve':
+        return '### **Mekanisme Katup**\nStruktur katup searah dinamis yang membuka dan menutup pasif akibat perubahan gradien tekanan darah. Mencegah darah mengalir kembali (regurgitasi) ke bilik atau serambi sebelumnya.\n\n'
+            '### **Klasifikasi & Penyokong**\nTerbagi menjadi katup atrioventrikuler (Mitral & Trikuspid) dan semilunar (Aorta & Pulmonal). Katup AV disokong oleh korda tendinae (tali jantung) agar daun katup tidak membalik ke belakang saat kontraksi.';
+      case 'backbone':
+        return '### **Struktur Kovalen**\nRangka rantai ganda luar DNA yang tersusun dari molekul gula deoksiribosa dan gugus fosfat yang berikatan kovalen secara berulang melalui ikatan fosfodiester.\n\n'
+            '### **Polaritas & Hidrofilisitas**\nBerjalan antiparalel dengan polaritas arah 5\' ke 3\'. Gugus fosfat yang bermuatan negatif membuat rantai samping ini **sangat polar (hidrofilik)**, memungkinkannya stabil berinteraksi dengan lingkungan berair di dalam sel.';
+      case 'basepair':
+        return '### **Aturan Komplementer**\nBasa nitrogen di dalam heliks ganda yang saling berpasangan secara spesifik: Adenin (A) dengan Timin (T), dan Sitosin (C) dengan Guanin (G) sesuai Aturan Chargaff.\n\n'
+            '### **Ikatan Hidrogen & Kode Genetik**\nPasangan A-T dihubungkan oleh 2 ikatan hidrogen, sedangkan C-G oleh 3 ikatan hidrogen. Urutan linier dari pasangan basa nitrogen ini membentuk **sandi genetik (kodon)** yang mengode protein dalam tubuh.';
+      case 'oxygen':
+        return '### **Elektronegativitas Tinggi**\nAtom pusat berdiameter kecil dengan elektronegativitas tinggi (3.44). Oksigen menarik elektron ikatan kovalen lebih kuat ke arah intinya dibanding atom Hidrogen.\n\n'
+            '### **Dipol & Geometri Molekul**\nMenyebabkan ujung oksigen bermuatan parsial negatif (δ-). Sudut ikatan H-O-H terdistorsi menjadi **104.5°** akibat dorongan kuat dari dua pasangan elektron bebas (PEB), menghasilkan momen dipol permanen.';
+      case 'hydrogen':
+        return '### **Kutub Parsial Positif**\nDua atom hidrogen yang berikatan kovalen dengan Oksigen. Karena kerapatan elektron ditarik oleh oksigen, inti hidrogen bermuatan parsial positif (δ+) dan agak tidak terlindungi.\n\n'
+            '### **Ikatan Hidrogen Antarmolekul**\nPolaritas δ+ pada hidrogen memicu daya tarik elektrostatik kuat dengan oksigen (δ-) dari molekul H2O tetangga. Fenomena ini mendasari **ikatan hidrogen**, yang memberikan air titik didih tinggi dan kohesi kuat.';
       default: return '';
     }
   }
@@ -572,8 +650,123 @@ class _ScanResultScreenState extends State<ScanResultScreen> with SingleTickerPr
                           ),
                         ),
 
-                        // Sci-fi HUD Interactive explanation card overlay
-                        if (_selectedPart != null)
+                        // Sci-fi HUD Interactive explanation card overlay (floating speech bubbles & bottom panel)
+                        if (_selectedPart != null) ...[
+                          (() {
+                            final currentAssetId = result.asset3dUrl ?? 'atom';
+                            final partOffset = _getSelectedPartOffset(_selectedPart!, currentAssetId, canvasSize);
+                            if (partOffset == null) return const SizedBox.shrink();
+                            
+                            const double bubbleWidth = 200;
+                            const double bubbleHeight = 85;
+                            double leftPos = partOffset.dx - (bubbleWidth / 2);
+                            double topPos = partOffset.dy - bubbleHeight - 20;
+
+                            leftPos = leftPos.clamp(12.0, canvasSize.width - bubbleWidth - 12.0);
+                            topPos = topPos.clamp(12.0, canvasSize.height - bubbleHeight - 110.0);
+
+                            return Positioned(
+                              left: partOffset.dx - 6,
+                              top: partOffset.dy - 18,
+                              child: Transform.rotate(
+                                angle: math.pi / 4,
+                                child: Container(
+                                  width: 12,
+                                  height: 12,
+                                  decoration: BoxDecoration(
+                                    color: Colors.black.withOpacity(0.9),
+                                    border: Border(
+                                      bottom: BorderSide(color: _getPartColor(_selectedPart!), width: 1.5),
+                                      right: BorderSide(color: _getPartColor(_selectedPart!), width: 1.5),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            );
+                          })(),
+                          (() {
+                            final currentAssetId = result.asset3dUrl ?? 'atom';
+                            final partOffset = _getSelectedPartOffset(_selectedPart!, currentAssetId, canvasSize);
+                            if (partOffset == null) return const SizedBox.shrink();
+
+                            const double bubbleWidth = 200;
+                            const double bubbleHeight = 85;
+                            double leftPos = partOffset.dx - (bubbleWidth / 2);
+                            double topPos = partOffset.dy - bubbleHeight - 20;
+
+                            leftPos = leftPos.clamp(12.0, canvasSize.width - bubbleWidth - 12.0);
+                            topPos = topPos.clamp(12.0, canvasSize.height - bubbleHeight - 110.0);
+
+                            return Positioned(
+                              left: leftPos,
+                              top: topPos,
+                              child: Container(
+                                width: bubbleWidth,
+                                padding: const EdgeInsets.all(10),
+                                decoration: BoxDecoration(
+                                  color: Colors.black.withOpacity(0.95),
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(
+                                    color: _getPartColor(_selectedPart!),
+                                    width: 1.5,
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: _getPartColor(_selectedPart!).withOpacity(0.3),
+                                      blurRadius: 10,
+                                      spreadRadius: 1,
+                                    ),
+                                  ],
+                                ),
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Icon(
+                                          _getPartIcon(_selectedPart!),
+                                          color: _getPartColor(_selectedPart!),
+                                          size: 14,
+                                        ),
+                                        const SizedBox(width: 6),
+                                        Expanded(
+                                          child: Text(
+                                            _getPartTitle(_selectedPart!),
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 10.5,
+                                            ),
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                        GestureDetector(
+                                          onTap: () => setState(() => _selectedPart = null),
+                                          child: const Icon(
+                                            Icons.close,
+                                            color: Colors.white54,
+                                            size: 12,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 5),
+                                    Text(
+                                      _getPartDescription(_selectedPart!),
+                                      style: const TextStyle(
+                                        color: Colors.white70,
+                                        fontSize: 9.0,
+                                        height: 1.3,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          })(),
+                          // Bottom fixed horizontal HUD details card
                           Positioned(
                             left: 16,
                             right: 16,
@@ -617,13 +810,21 @@ class _ScanResultScreenState extends State<ScanResultScreen> with SingleTickerPr
                                             fontSize: 12,
                                           ),
                                         ),
-                                        const SizedBox(height: 3),
-                                        Text(
-                                          _getPartDescription(_selectedPart!),
-                                          style: const TextStyle(
-                                            color: Colors.white70,
-                                            fontSize: 10.5,
-                                            height: 1.3,
+                                        const SizedBox(height: 4),
+                                        SizedBox(
+                                          height: 75,
+                                          child: SingleChildScrollView(
+                                            physics: const BouncingScrollPhysics(),
+                                            child: RichText(
+                                              text: TextSpan(
+                                                children: _parseMarkdown(
+                                                  _getPartDetailedDescription(_selectedPart!),
+                                                  context,
+                                                  true,
+                                                  compact: true,
+                                                ),
+                                              ),
+                                            ),
                                           ),
                                         ),
                                       ],
@@ -646,6 +847,7 @@ class _ScanResultScreenState extends State<ScanResultScreen> with SingleTickerPr
                               ),
                             ),
                           ),
+                        ],
                       ],
                     );
                   },
