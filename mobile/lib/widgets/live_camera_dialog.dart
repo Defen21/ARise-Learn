@@ -2,6 +2,8 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:provider/provider.dart';
+import '../services/api_service.dart';
 import 'camera_stub.dart' if (dart.library.html) 'camera_web.dart';
 
 class LiveCameraDialog extends StatefulWidget {
@@ -41,7 +43,10 @@ class _LiveCameraDialogState extends State<LiveCameraDialog> {
     try {
       _cameras = await availableCameras();
       if (_cameras == null || _cameras!.isEmpty) {
-        throw Exception("Kamera tidak ditemukan di perangkat Anda.");
+        final lang = Provider.of<ApiService>(context, listen: false).language;
+        throw Exception(lang == 'en'
+            ? "No camera found on your device."
+            : "Kamera tidak ditemukan di perangkat Anda.");
       }
 
       _controller = CameraController(
@@ -59,8 +64,11 @@ class _LiveCameraDialogState extends State<LiveCameraDialog> {
     } catch (e) {
       if (!mounted) return;
       String friendlyMsg = e.toString().replaceAll("Exception: ", "");
+      final lang = mounted ? Provider.of<ApiService>(context, listen: false).language : 'id';
       if (friendlyMsg.contains("Null") || friendlyMsg.contains("JSArray") || friendlyMsg.contains("mediaDevices")) {
-        friendlyMsg = "Kamera tidak terdeteksi atau izin kamera diblokir oleh browser. Silakan aktifkan izin kamera di bilah alamat browser Anda atau gunakan tombol unggah berkas di bawah ini.";
+        friendlyMsg = lang == 'en'
+            ? "Camera not detected or camera permission is blocked by the browser. Please enable camera access in your browser's address bar or use the file upload button below."
+            : "Kamera tidak terdeteksi atau izin kamera diblokir oleh browser. Silakan aktifkan izin kamera di bilah alamat browser Anda atau gunakan tombol unggah berkas di bawah ini.";
       }
       setState(() {
         _error = friendlyMsg;
@@ -102,6 +110,8 @@ class _LiveCameraDialogState extends State<LiveCameraDialog> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final lang = Provider.of<ApiService>(context, listen: false).language;
+    final isEn = lang == 'en';
     
     return Dialog(
       backgroundColor: isDark ? const Color(0xFF0F172A) : Colors.black,
@@ -152,14 +162,14 @@ class _LiveCameraDialogState extends State<LiveCameraDialog> {
                   alignment: Alignment.center,
                   children: [
                     if (_isInitializing)
-                      const Column(
+                      Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          CircularProgressIndicator(color: Colors.blueAccent),
-                          SizedBox(height: 12),
+                          const CircularProgressIndicator(color: Colors.blueAccent),
+                          const SizedBox(height: 12),
                           Text(
-                            'Menghubungkan kamera...',
-                            style: TextStyle(color: Colors.white70, fontSize: 12),
+                            isEn ? 'Connecting camera...' : 'Menghubungkan kamera...',
+                            style: const TextStyle(color: Colors.white70, fontSize: 12),
                           ),
                         ],
                       )
@@ -172,9 +182,9 @@ class _LiveCameraDialogState extends State<LiveCameraDialog> {
                             const Icon(Icons.error_outline, color: Colors.redAccent, size: 48),
                             const SizedBox(height: 12),
                             Text(
-                              'Akses Kamera Gagal',
-                              style: TextStyle(
-                                color: isDark ? Colors.white : Colors.white,
+                              isEn ? 'Camera Access Failed' : 'Akses Kamera Gagal',
+                              style: const TextStyle(
+                                color: Colors.white,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
@@ -190,6 +200,7 @@ class _LiveCameraDialogState extends State<LiveCameraDialog> {
                     else if (kIsWeb)
                       buildWebcamPreview(
                         context: context,
+                        lang: lang,
                         onCaptured: (photo) => Navigator.pop(context, photo),
                         onError: (err) {
                           if (mounted) {
@@ -319,12 +330,15 @@ class _LiveCameraDialogState extends State<LiveCameraDialog> {
                         }
                       } catch (e) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('Gagal memilih berkas: $e')),
+                          SnackBar(content: Text(isEn ? 'Failed to pick file: $e' : 'Gagal memilih berkas: $e')),
                         );
                       }
                     },
                     icon: const Icon(Icons.photo_library),
-                    label: const Text('Pilih Berkas dari Galeri/OS', style: TextStyle(fontWeight: FontWeight.bold)),
+                    label: Text(
+                      isEn ? 'Choose File from Gallery/OS' : 'Pilih Berkas dari Galeri/OS',
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
                   ),
                   const SizedBox(height: 8),
                   TextButton.icon(
@@ -333,7 +347,7 @@ class _LiveCameraDialogState extends State<LiveCameraDialog> {
                     ),
                     onPressed: () => Navigator.pop(context, null),
                     icon: const Icon(Icons.arrow_back),
-                    label: const Text('Kembali ke Dashboard'),
+                    label: Text(isEn ? 'Back to Dashboard' : 'Kembali ke Dashboard'),
                   ),
                 ],
               ),

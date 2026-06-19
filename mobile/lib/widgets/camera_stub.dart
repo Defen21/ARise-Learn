@@ -6,6 +6,7 @@ Widget buildWebcamPreview({
   required Function(XFile) onCaptured,
   required Function(String) onError,
   bool scanMode = true,
+  String lang = 'id',
 }) {
   return const SizedBox.shrink();
 }

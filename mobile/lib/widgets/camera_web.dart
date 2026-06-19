@@ -9,11 +9,13 @@ Widget buildWebcamPreview({
   required Function(XFile) onCaptured,
   required Function(String) onError,
   bool scanMode = true,
+  String lang = 'id',
 }) {
   return WebcamPreviewWidget(
     onCaptured: onCaptured,
     onError: onError,
     scanMode: scanMode,
+    lang: lang,
   );
 }
 
@@ -21,12 +23,14 @@ class WebcamPreviewWidget extends StatefulWidget {
   final Function(XFile) onCaptured;
   final Function(String) onError;
   final bool scanMode;
+  final String lang;
   
   const WebcamPreviewWidget({
     super.key,
     required this.onCaptured,
     required this.onError,
     this.scanMode = true,
+    this.lang = 'id',
   });
 
   @override
@@ -61,7 +65,9 @@ class _WebcamPreviewWidgetState extends State<WebcamPreviewWidget> {
     try {
       final stream = await html.window.navigator.mediaDevices?.getUserMedia({'video': true});
       if (stream == null) {
-        throw Exception("Kamera tidak dapat diakses.");
+        throw Exception(widget.lang == 'en'
+            ? "Camera cannot be accessed."
+            : "Kamera tidak dapat diakses.");
       }
       _localStream = stream;
       _videoElement!.srcObject = stream;
@@ -76,7 +82,9 @@ class _WebcamPreviewWidgetState extends State<WebcamPreviewWidget> {
         _isInitialized = true;
       });
     } catch (e) {
-      widget.onError("Izin kamera ditolak atau tidak ada kamera terhubung. Silakan aktifkan izin kamera di browser Anda atau gunakan tombol unggah berkas.");
+      widget.onError(widget.lang == 'en'
+          ? "Camera permission denied or no camera connected. Please enable camera access in your browser or use the file upload button."
+          : "Izin kamera ditolak atau tidak ada kamera terhubung. Silakan aktifkan izin kamera di browser Anda atau gunakan tombol unggah berkas.");
     }
   }
 
@@ -211,7 +219,7 @@ class _WebcamPreviewWidgetState extends State<WebcamPreviewWidget> {
       final blobUrl = html.Url.createObjectUrlFromBlob(blob);
       widget.onCaptured(XFile(blobUrl, name: 'webcam_capture.jpg'));
     } catch (e) {
-      widget.onError("Gagal mengambil gambar: $e");
+      widget.onError(widget.lang == 'en' ? "Failed to capture image: $e" : "Gagal mengambil gambar: $e");
     }
   }
 }
