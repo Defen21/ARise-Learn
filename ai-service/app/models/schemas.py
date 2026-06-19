@@ -5,6 +5,14 @@ from typing import Optional
 class AnalyzeRequest(BaseModel):
     image_url: str = Field(..., description="URL or base64 of the scanned textbook image")
     context: Optional[str] = Field(None, description="Optional subject/course context")
+    language: Optional[str] = Field("id", description="Language of explanation: 'id' or 'en'")
+
+
+class Recommendation(BaseModel):
+    title: str
+    description: str
+    relevance: str = "Relevan"  # "Sangat Relevan" | "Relevan"
+    icon_hint: str = "book"  # icon hint for Flutter UI
 
 
 class AnalyzeResponse(BaseModel):
@@ -12,6 +20,7 @@ class AnalyzeResponse(BaseModel):
     subject_topic: str
     confidence: float = Field(..., ge=0.0, le=1.0)
     asset_3d_hint: Optional[str] = None
+    recommendations: list[Recommendation] = []
 
 
 class RAGQueryRequest(BaseModel):

@@ -556,23 +556,32 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               const SizedBox(height: 24),
               Center(
                 child: Container(
-                  width: 140,
-                  height: 140,
+                  width: 150,
+                  height: 150,
+                  padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: scheme.primary.withOpacity(0.04),
-                    shape: BoxShape.circle,
-                    border: Border.all(color: scheme.primary.withOpacity(0.15), width: 1.5),
+                    color: scheme.primary.withOpacity(isDark ? 0.05 : 0.03),
+                    borderRadius: BorderRadius.circular(24),
                   ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(70),
-                    child: AnimatedBuilder(
-                      animation: _breathController,
-                      builder: (context, child) {
-                        return CustomPaint(
-                          painter: RadarScannerPainter(_breathController.value, scheme.primary),
-                        );
-                      },
-                    ),
+                  child: Stack(
+                    children: [
+                      Center(
+                        child: Icon(
+                          Icons.menu_book_rounded,
+                          size: 64,
+                          color: scheme.primary.withOpacity(isDark ? 0.35 : 0.25),
+                        ),
+                      ),
+                      AnimatedBuilder(
+                        animation: _breathController,
+                        builder: (context, child) {
+                          return CustomPaint(
+                            size: Size.infinite,
+                            painter: BookScannerPainter(_breathController.value, scheme.primary),
+                          );
+                        },
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -629,7 +638,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     hintText: _t('search_hint', lang),
                     hintStyle: TextStyle(color: Colors.grey[500], fontSize: 13),
                     prefixIcon: Icon(Icons.search_rounded, color: scheme.primary, size: 20),
+                    filled: false,
                     border: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                    focusedBorder: InputBorder.none,
                     contentPadding: const EdgeInsets.symmetric(vertical: 14),
                   ),
                   onChanged: (val) {
@@ -737,15 +749,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 ),
                 child: Column(
                   children: [
-                    const CircleAvatar(
+                    CircleAvatar(
                       radius: 42,
-                      backgroundImage: NetworkImage(
-                        'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=150',
-                      ),
+                      backgroundImage: AssetImage('assets/images/pp.jpg'),
                     ),
                     const SizedBox(height: 14),
                     Text(
-                      'ARise Explorer',
+                      'Defender',
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w900,
@@ -810,7 +820,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 children: [
                   Icon(Icons.emoji_events_outlined, size: 20, color: scheme.primary),
                   const SizedBox(width: 8),
-                  Text(_t('unlocked_achievements', lang), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800)),
+                  Expanded(
+                    child: Text(
+                      _t('unlocked_achievements', lang),
+                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
                 ],
               ),
               const SizedBox(height: 12),
@@ -1133,22 +1149,19 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           child: BackdropFilter(
             filter: ImageFilter.blur(sigmaX: 12.0, sigmaY: 12.0),
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              height: 64,
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
               decoration: BoxDecoration(
                 color: (isDark ? const Color(0xFF1C1B2E) : Colors.white).withOpacity(0.85),
                 borderRadius: BorderRadius.circular(30),
-                border: Border.all(
-                  color: (isDark ? Colors.white : Colors.black).withOpacity(0.08),
-                  width: 1.5,
-                ),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
-                  _buildNavItem(Icons.home_rounded, 0, isDark, scheme),
-                  _buildNavItem(Icons.search_rounded, 1, isDark, scheme),
-                  _buildNavItem(Icons.view_in_ar_rounded, 2, isDark, scheme),
-                  _buildNavItem(Icons.person_rounded, 3, isDark, scheme),
+                  Expanded(child: _buildNavItem(Icons.home_rounded, 0, isDark, scheme)),
+                  Expanded(child: _buildNavItem(Icons.search_rounded, 1, isDark, scheme)),
+                  Expanded(child: _buildNavItem(Icons.view_in_ar_rounded, 2, isDark, scheme)),
+                  Expanded(child: _buildNavItem(Icons.person_rounded, 3, isDark, scheme)),
                 ],
               ),
             ),
@@ -1163,26 +1176,21 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     return GestureDetector(
       onTap: () => setState(() => _currentNav = index),
       behavior: HitTestBehavior.opaque,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 250),
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-        decoration: BoxDecoration(
-          gradient: isActive ? LinearGradient(colors: [scheme.primary, scheme.tertiary]) : null,
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: isActive
-              ? [
-                  BoxShadow(
-                    color: scheme.primary.withOpacity(0.35),
-                    blurRadius: 12,
-                    offset: const Offset(0, 4),
-                  )
-                ]
-              : null,
-        ),
-        child: Icon(
-          icon,
-          size: 22,
-          color: isActive ? Colors.white : (isDark ? Colors.grey[500] : Colors.grey[600]),
+      child: Center(
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            color: isActive
+                ? scheme.primary.withOpacity(isDark ? 0.15 : 0.08)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Icon(
+            icon,
+            size: 22,
+            color: isActive ? scheme.primary : (isDark ? Colors.grey[500] : Colors.grey[600]),
+          ),
         ),
       ),
     );
@@ -1198,11 +1206,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             border: Border.all(color: scheme.primary.withOpacity(0.3), width: 2),
           ),
           padding: const EdgeInsets.all(2),
-          child: const CircleAvatar(
+          child: CircleAvatar(
             radius: 22,
-            backgroundImage: NetworkImage(
-              'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=150',
-            ),
+            backgroundImage: AssetImage('assets/images/pp.jpg'),
           ),
         ),
         const SizedBox(width: 14),
@@ -1212,7 +1218,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             children: [
               Text(_t('welcome', lang), style: TextStyle(fontSize: 12, color: isDark ? Colors.grey[400] : const Color(0xFF475569), fontWeight: FontWeight.w500)),
               const SizedBox(height: 2),
-              Text('ARise Learn', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: isDark ? Colors.white : const Color(0xFF0F172A), letterSpacing: -0.5)),
+              Text('Defender', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: isDark ? Colors.white : const Color(0xFF0F172A), letterSpacing: -0.5)),
             ],
           ),
         ),
@@ -1329,6 +1335,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           filled: false,
                           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                           border: InputBorder.none,
+                          enabledBorder: InputBorder.none,
+                          focusedBorder: InputBorder.none,
                           prefixIcon: Icon(Icons.link_rounded, color: Colors.white.withOpacity(0.5), size: 20),
                         ),
                         onChanged: (text) => setState(() {}),
@@ -1508,8 +1516,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           child: Icon(icon, size: 18, color: Theme.of(context).colorScheme.primary),
         ),
         const SizedBox(width: 12),
-        Text(title, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, letterSpacing: -0.3, color: isDark ? Colors.white : const Color(0xFF0F172A))),
-        const Spacer(),
+        Expanded(
+          child: Text(
+            title,
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, letterSpacing: -0.3, color: isDark ? Colors.white : const Color(0xFF0F172A)),
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+        const SizedBox(width: 8),
         TextButton(
           onPressed: () => setState(() => _currentNav = 2),
           child: Text(_t('view_all', lang), style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Theme.of(context).colorScheme.primary)),
@@ -1904,96 +1918,55 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 }
 
-class RadarScannerPainter extends CustomPainter {
+class BookScannerPainter extends CustomPainter {
   final double animationValue;
   final Color color;
-  RadarScannerPainter(this.animationValue, this.color);
+  BookScannerPainter(this.animationValue, this.color);
 
   @override
   void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width / 2, size.height / 2);
-    final maxRadius = math.min(size.width, size.height) / 2;
-
-    // 1. Pulsing ring
-    final pulseRadius = maxRadius * animationValue;
-    final pulsePaint = Paint()
-      ..color = color.withOpacity(0.25 * (1.0 - animationValue))
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.0;
-    canvas.drawCircle(center, pulseRadius, pulsePaint);
-
-    // 2. Grid rings
-    final paintRing = Paint()
-      ..color = color.withOpacity(0.08)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.0;
-    
-    for (int i = 1; i <= 3; i++) {
-      canvas.drawCircle(center, maxRadius * (i / 3), paintRing);
-    }
-
-    // 3. Crosshairs
-    final paintCross = Paint()
-      ..color = color.withOpacity(0.12)
-      ..strokeWidth = 1.0;
-    canvas.drawLine(Offset(center.dx - maxRadius, center.dy), Offset(center.dx + maxRadius, center.dy), paintCross);
-    canvas.drawLine(Offset(center.dx, center.dy - maxRadius), Offset(center.dx, center.dy + maxRadius), paintCross);
-
-    // 4. Tick marks around the outer boundary
-    final paintTicks = Paint()
-      ..color = color.withOpacity(0.2)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.0;
-    const tickCount = 24;
-    for (int i = 0; i < tickCount; i++) {
-      final angle = (i * 2 * math.pi) / tickCount;
-      final start = Offset(
-        center.dx + (maxRadius - 6) * math.cos(angle),
-        center.dy + (maxRadius - 6) * math.sin(angle),
-      );
-      final end = Offset(
-        center.dx + maxRadius * math.cos(angle),
-        center.dy + maxRadius * math.sin(angle),
-      );
-      canvas.drawLine(start, end, paintTicks);
-    }
-
-    // 5. Sweep gradient
-    final paintSweep = Paint()
-      ..style = PaintingStyle.fill
-      ..shader = SweepGradient(
-        colors: [color.withOpacity(0.0), color.withOpacity(0.35), color.withOpacity(0.0)],
-        stops: const [0.0, 0.5, 1.0],
-        transform: GradientRotation(animationValue * 2 * math.pi),
-      ).createShader(Rect.fromCircle(center: center, radius: maxRadius));
-    
-    canvas.drawCircle(center, maxRadius, paintSweep);
-
-    // 6. Active scanning ray
-    final rayPaint = Paint()
+    final paintCorner = Paint()
       ..color = color.withOpacity(0.6)
+      ..strokeWidth = 2.5
+      ..style = PaintingStyle.stroke;
+    
+    // Draw 4 corner brackets of viewfinder
+    const len = 16.0;
+    // Top Left
+    canvas.drawPath(Path()..moveTo(0, len)..lineTo(0, 0)..lineTo(len, 0), paintCorner);
+    // Top Right
+    canvas.drawPath(Path()..moveTo(size.width - len, 0)..lineTo(size.width, 0)..lineTo(size.width, len), paintCorner);
+    // Bottom Left
+    canvas.drawPath(Path()..moveTo(0, size.height - len)..lineTo(0, size.height)..lineTo(len, size.height), paintCorner);
+    // Bottom Right
+    canvas.drawPath(Path()..moveTo(size.width - len, size.height)..lineTo(size.width, size.height)..lineTo(size.width, size.height - len), paintCorner);
+
+    // Draw horizontal scanning laser line
+    final y = size.height * animationValue;
+    final paintLine = Paint()
+      ..color = color
       ..strokeWidth = 2.0;
-    final angle = animationValue * 2 * math.pi;
-    canvas.drawLine(
-      center,
-      Offset(center.dx + maxRadius * math.cos(angle), center.dy + maxRadius * math.sin(angle)),
-      rayPaint,
+
+    // Laser glow
+    final glowPaint = Paint()
+      ..color = color.withOpacity(0.25)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6);
+
+    canvas.drawRect(
+      Rect.fromLTRB(4, y - 4, size.width - 4, y + 4),
+      glowPaint,
     );
 
-    // 7. Center glow & dot
-    final glowPaint = Paint()
-      ..color = color.withOpacity(0.3)
-      ..style = PaintingStyle.fill;
-    canvas.drawCircle(center, 12, glowPaint);
-
-    final dotPaint = Paint()
-      ..color = Colors.white
-      ..style = PaintingStyle.fill;
-    canvas.drawCircle(center, 4, dotPaint);
+    // Laser line itself
+    canvas.drawLine(
+      Offset(4, y),
+      Offset(size.width - 4, y),
+      paintLine,
+    );
   }
 
   @override
-  bool shouldRepaint(covariant RadarScannerPainter oldDelegate) =>
+  bool shouldRepaint(covariant BookScannerPainter oldDelegate) =>
       oldDelegate.animationValue != animationValue || oldDelegate.color != color;
 }
 

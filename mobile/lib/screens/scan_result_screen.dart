@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:provider/provider.dart';
 import '../services/api_service.dart';
+import '../models/scan_result.dart';
 import 'ar_viewer_screen.dart';
 
 class ScanResultScreen extends StatefulWidget {
@@ -96,13 +97,13 @@ class _ScanResultScreenState extends State<ScanResultScreen> with SingleTickerPr
     for (int i = 0; i < lines.length; i++) {
       final line = lines[i].trim();
       if (line.isEmpty) {
-        spans.add(TextSpan(text: compact ? '\n' : '\n\n'));
+        spans.add(const TextSpan(text: '\n'));
         continue;
       }
       
       if (line.startsWith('### ')) {
         spans.add(TextSpan(
-          text: compact ? '${line.substring(4)}\n' : '\n${line.substring(4)}\n\n',
+          text: compact ? '${line.substring(4)}\n' : '\n${line.substring(4)}\n',
           style: TextStyle(
             fontWeight: FontWeight.bold,
             color: compact
@@ -135,7 +136,7 @@ class _ScanResultScreenState extends State<ScanResultScreen> with SingleTickerPr
             ),
           ));
         }
-        spans.add(TextSpan(text: compact ? '\n' : '\n\n'));
+        spans.add(const TextSpan(text: '\n'));
       }
     }
     return spans;
@@ -177,6 +178,37 @@ class _ScanResultScreenState extends State<ScanResultScreen> with SingleTickerPr
     );
   }
 
+  Widget _buildLangButton({
+    required String label,
+    required bool active,
+    required bool isDark,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        decoration: BoxDecoration(
+          color: active
+              ? Theme.of(context).colorScheme.primary
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: active
+                ? Colors.white
+                : (isDark ? Colors.grey[400] : Colors.grey[600]),
+            fontWeight: FontWeight.bold,
+            fontSize: 10,
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildPulsingPin({required Color color}) {
     return Container(
       width: 24,
@@ -206,13 +238,21 @@ class _ScanResultScreenState extends State<ScanResultScreen> with SingleTickerPr
     );
   }
 
+  bool _isValidAsset(String? assetId) {
+    return assetId == 'heart' ||
+           assetId == 'dna_helix' ||
+           assetId == 'water_molecule' ||
+           assetId == 'atom';
+  }
+
   // ══════════ Dynamic Model Helpers ══════════
   String _getAssetTitle(String? assetId) {
     switch (assetId) {
       case 'heart': return '3D HUMAN HEART MODEL';
       case 'dna_helix': return '3D DNA DOUBLE HELIX';
       case 'water_molecule': return '3D H2O MOLECULE';
-      default: return 'ATOM BOHR';
+      case 'atom': return '3D BOHR ATOM MODEL';
+      default: return 'MODEL 3D TIDAK TERSEDIA';
     }
   }
 
@@ -492,14 +532,30 @@ class _ScanResultScreenState extends State<ScanResultScreen> with SingleTickerPr
 
     if (result == null) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Detail Analisis')),
-        body: const Center(child: Text('Hasil pemindaian tidak tersedia.')),
+        appBar: AppBar(title: Text(apiService.language == 'en' ? 'Analysis Detail' : 'Detail Analisis')),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const CircularProgressIndicator(color: Colors.blueAccent),
+              const SizedBox(height: 16),
+              Text(
+                apiService.language == 'en' ? 'Translating / Analyzing...' : 'Menerjemahkan / Menganalisis...',
+                style: TextStyle(
+                  color: isDark ? Colors.white70 : Colors.black87,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 13,
+                ),
+              ),
+            ],
+          ),
+        ),
       );
     }
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Detail Analisis'),
+        title: Text(apiService.language == 'en' ? 'Analysis Detail' : 'Detail Analisis'),
         actions: [
           IconButton(
             icon: const Icon(Icons.share_outlined),
@@ -539,6 +595,60 @@ class _ScanResultScreenState extends State<ScanResultScreen> with SingleTickerPr
                 child: LayoutBuilder(
                   builder: (context, constraints) {
                     final canvasSize = Size(constraints.maxWidth, 380);
+                    
+                    if (!_isValidAsset(result.asset3dUrl)) {
+                      return Stack(
+                        children: [
+                          Positioned.fill(
+                            child: CustomPaint(
+                              painter: GridBackgroundPainter(),
+                            ),
+                          ),
+                          Center(
+                            child: Padding(
+                              padding: const EdgeInsets.all(24.0),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(16),
+                                    decoration: BoxDecoration(
+                                      color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: Icon(
+                                      Icons.view_in_ar_off_rounded,
+                                      color: Theme.of(context).colorScheme.primary,
+                                      size: 40,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  const Text(
+                                    'Visualisasi 3D AR Tidak Tersedia',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    'Model 3D interaktif belum tersedia untuk topik "${result.subjectTopic}".\nPlatform ini mendukung visualisasi 3D untuk: Jantung, DNA, Molekul Air, dan Atom.',
+                                    style: const TextStyle(
+                                      color: Colors.white70,
+                                      fontSize: 12,
+                                      height: 1.5,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      );
+                    }
 
                     return Stack(
                       children: [
@@ -857,7 +967,8 @@ class _ScanResultScreenState extends State<ScanResultScreen> with SingleTickerPr
             ),
 
             // 2. Control buttons below it
-            Padding(
+            if (_isValidAsset(result.asset3dUrl))
+              Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -977,13 +1088,61 @@ class _ScanResultScreenState extends State<ScanResultScreen> with SingleTickerPr
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Text(
-                      'Penjelasan AI',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 15,
-                        color: Theme.of(context).colorScheme.primary,
-                      ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          apiService.language == 'en' ? 'AI Explanation' : 'Penjelasan AI',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.all(2),
+                          decoration: BoxDecoration(
+                            color: isDark ? const Color(0xFF0F172A) : Colors.grey[200],
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(
+                              color: isDark ? const Color(0xFF334155) : Colors.grey[300]!,
+                              width: 1.0,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              _buildLangButton(
+                                label: 'ID',
+                                active: apiService.language == 'id',
+                                isDark: isDark,
+                                onTap: () {
+                                  if (apiService.language != 'id') {
+                                    apiService.setLanguage('id');
+                                    if (result.imageUrl != null) {
+                                      apiService.submitScan(result.imageUrl!, context: result.subjectTopic);
+                                    }
+                                  }
+                                },
+                              ),
+                              const SizedBox(width: 2),
+                              _buildLangButton(
+                                label: 'EN',
+                                active: apiService.language == 'en',
+                                isDark: isDark,
+                                onTap: () {
+                                  if (apiService.language != 'en') {
+                                    apiService.setLanguage('en');
+                                    if (result.imageUrl != null) {
+                                      apiService.submitScan(result.imageUrl!, context: result.subjectTopic);
+                                    }
+                                  }
+                                },
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
                     const Divider(height: 20, thickness: 1),
                     SelectableText.rich(
@@ -1017,7 +1176,7 @@ class _ScanResultScreenState extends State<ScanResultScreen> with SingleTickerPr
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Text(
-                    'Grounding Kurikulum Resmi',
+                    apiService.language == 'en' ? 'Official Curriculum Grounding' : 'Grounding Kurikulum Resmi',
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.bold,
                           fontSize: 14,
@@ -1025,7 +1184,9 @@ class _ScanResultScreenState extends State<ScanResultScreen> with SingleTickerPr
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    'Penjelasan AI di atas telah divalidasi terhadap basis data buku teks resmi untuk mencegah halusinasi jawaban.',
+                    apiService.language == 'en'
+                        ? 'The AI explanation above has been validated against official textbook databases to prevent answer hallucinations.'
+                        : 'Penjelasan AI di atas telah divalidasi terhadap basis data buku teks resmi untuk mencegah halusinasi jawaban.',
                     style: TextStyle(
                       color: isDark ? Colors.grey[400] : Colors.grey[600],
                       fontSize: 12,
@@ -1044,8 +1205,67 @@ class _ScanResultScreenState extends State<ScanResultScreen> with SingleTickerPr
               ),
             ),
 
-            // 7. Fullscreen AR Camera mode trigger
-            Padding(
+            // 7. Rekomendasi Materi Selanjutnya
+            if (result.recommendations.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [Theme.of(context).colorScheme.primary, Theme.of(context).colorScheme.tertiary],
+                            ),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Icon(Icons.auto_awesome, size: 16, color: Colors.white),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                apiService.language == 'en' ? 'Recommended Next Topics' : 'Rekomendasi Materi Selanjutnya',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 14,
+                                  color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                apiService.language == 'en' ? 'Most effective topics to study next' : 'Topik paling efektif untuk dipelajari berikutnya',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: isDark ? Colors.grey[400] : Colors.grey[600],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    ...result.recommendations.asMap().entries.map((entry) {
+                      final index = entry.key;
+                      final rec = entry.value;
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 10),
+                        child: _buildRecommendationCard(context, rec, index, isDark),
+                      );
+                    }),
+                  ],
+                ),
+              ),
+
+            // 8. Fullscreen AR Camera mode trigger
+            if (_isValidAsset(result.asset3dUrl))
+              Padding(
               padding: const EdgeInsets.all(16.0),
               child: Container(
                 decoration: BoxDecoration(
@@ -1067,15 +1287,146 @@ class _ScanResultScreenState extends State<ScanResultScreen> with SingleTickerPr
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                   ),
                   icon: const Icon(Icons.fullscreen, size: 22),
-                  label: const Text(
-                    'MASUK MODE AR KAMERA PENUH',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, letterSpacing: 0.5),
+                  label: Text(
+                    apiService.language == 'en' ? 'ENTER FULLSCREEN AR CAMERA MODE' : 'MASUK MODE AR KAMERA PENUH',
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, letterSpacing: 0.5),
                   ),
                 ),
               ),
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  IconData _getRecommendationIcon(String hint) {
+    switch (hint) {
+      case 'science': return Icons.science_rounded;
+      case 'biotech': return Icons.biotech_rounded;
+      case 'chemistry': return Icons.science_outlined;
+      case 'psychology': return Icons.psychology_rounded;
+      case 'calculate': return Icons.calculate_rounded;
+      case 'biology': return Icons.eco_rounded;
+      case 'medical': return Icons.medical_services_rounded;
+      case 'atom': return Icons.blur_circular_rounded;
+      case 'water': return Icons.water_drop_rounded;
+      case 'dna': return Icons.gesture_rounded;
+      default: return Icons.menu_book_rounded;
+    }
+  }
+
+  Widget _buildRecommendationCard(BuildContext context, Recommendation rec, int index, bool isDark) {
+    final scheme = Theme.of(context).colorScheme;
+    final gradientColors = [
+      [const Color(0xFF6366F1), const Color(0xFF8B5CF6)],
+      [const Color(0xFF06B6D4), const Color(0xFF14B8A6)],
+      [const Color(0xFFF59E0B), const Color(0xFFF97316)],
+    ];
+    final colors = gradientColors[index % gradientColors.length];
+    final isSangatRelevan = rec.relevance == 'Sangat Relevan';
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: isDark ? Colors.white.withOpacity(0.04) : Colors.white.withOpacity(0.5),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: isSangatRelevan
+              ? colors[0].withOpacity(0.4)
+              : (isDark ? Colors.white.withOpacity(0.08) : Colors.black.withOpacity(0.06)),
+          width: isSangatRelevan ? 1.5 : 1.0,
+        ),
+        boxShadow: isSangatRelevan
+            ? [
+                BoxShadow(
+                  color: colors[0].withOpacity(isDark ? 0.15 : 0.08),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ]
+            : [
+                BoxShadow(
+                  color: Colors.black.withOpacity(isDark ? 0.15 : 0.03),
+                  blurRadius: 6,
+                  offset: const Offset(0, 3),
+                ),
+              ],
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(colors: colors),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(
+              _getRecommendationIcon(rec.iconHint),
+              color: Colors.white,
+              size: 20,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        rec.title,
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 13,
+                          color: isDark ? Colors.white : const Color(0xFF0F172A),
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        gradient: isSangatRelevan
+                            ? LinearGradient(colors: colors)
+                            : null,
+                        color: isSangatRelevan
+                            ? null
+                            : (isDark ? Colors.white.withOpacity(0.08) : Colors.grey[200]),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        rec.relevance,
+                        style: TextStyle(
+                          fontSize: 9,
+                          fontWeight: FontWeight.bold,
+                          color: isSangatRelevan
+                              ? Colors.white
+                              : (isDark ? Colors.grey[300] : Colors.grey[700]),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  rec.description,
+                  style: TextStyle(
+                    fontSize: 11,
+                    height: 1.4,
+                    color: isDark ? Colors.grey[400] : Colors.grey[600],
+                  ),
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

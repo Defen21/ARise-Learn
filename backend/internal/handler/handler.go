@@ -112,6 +112,7 @@ func (h *ScanHandler) UploadAndScan(c *gin.Context) {
 
 	userID := c.DefaultPostForm("user_id", "demo-user")
 	subjectContext := c.PostForm("context")
+	language := c.DefaultPostForm("language", "id")
 
 	uploadsDir := "./uploads"
 	if err := os.MkdirAll(uploadsDir, os.ModePerm); err != nil {
@@ -146,6 +147,7 @@ func (h *ScanHandler) UploadAndScan(c *gin.Context) {
 		UserID:   userID,
 		ImageURL: imageURL,
 		Context:  subjectContext,
+		Language: language,
 	}
 
 	result, err := h.scanService.ProcessScan(c.Request.Context(), &req)

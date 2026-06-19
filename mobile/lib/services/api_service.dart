@@ -70,6 +70,7 @@ class ApiService extends ChangeNotifier {
       final response = await _dio.post('/api/v1/scan', data: {
         'user_id': 'demo-user',
         'image_url': imageUrl,
+        'language': _language,
         if (context != null) 'context': context,
       });
 
@@ -123,6 +124,7 @@ class ApiService extends ChangeNotifier {
       final formData = FormData.fromMap({
         'image': multipartFile,
         'user_id': 'demo-user',
+        'language': _language,
         if (context != null) 'context': context,
       });
 

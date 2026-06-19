@@ -33,6 +33,7 @@ func (s *ScanService) ProcessScan(ctx context.Context, req *model.ScanRequest) (
 	analyzeReq := model.AnalyzeRequest{
 		ImageURL: req.ImageURL,
 		Context:  req.Context,
+		Language: req.Language,
 	}
 
 	body, err := json.Marshal(analyzeReq)
@@ -62,12 +63,13 @@ func (s *ScanService) ProcessScan(ctx context.Context, req *model.ScanRequest) (
 
 	// Build and persist scan result
 	result := &model.ScanResult{
-		UserID:       req.UserID,
-		ImageURL:     req.ImageURL,
-		Explanation:  analyzeResp.Explanation,
-		Asset3DURL:   analyzeResp.Asset3DHint,
-		Confidence:   analyzeResp.Confidence,
-		SubjectTopic: analyzeResp.SubjectTopic,
+		UserID:          req.UserID,
+		ImageURL:        req.ImageURL,
+		Explanation:     analyzeResp.Explanation,
+		Asset3DURL:      analyzeResp.Asset3DHint,
+		Confidence:      analyzeResp.Confidence,
+		SubjectTopic:    analyzeResp.SubjectTopic,
+		Recommendations: analyzeResp.Recommendations,
 	}
 
 	if err := s.repo.CreateScan(ctx, result); err != nil {

@@ -23,6 +23,7 @@ async def analyze_image(request: AnalyzeRequest):
         result = await rag_service.analyze_image(
             image_url=request.image_url,
             context=request.context,
+            language=request.language,
         )
         return AnalyzeResponse(**result)
     except Exception as e:
