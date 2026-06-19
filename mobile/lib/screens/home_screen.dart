@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'dart:ui' show ImageFilter;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
 import '../services/api_service.dart';
@@ -69,7 +70,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     final result = await apiService.submitScan(url);
     if (!mounted) return;
     if (result != null) {
-      Navigator.pushNamed(context, '/result');
+      final status = await Navigator.pushNamed(context, '/result');
+      if (status != null && mounted) {
+        _handleNavigationResult(status);
+      }
     } else if (apiService.error != null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -79,6 +83,17 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         ),
       );
+    }
+  }
+
+  void _handleNavigationResult(dynamic status) {
+    if (status == 'rescan') {
+      _handleCameraScan();
+    } else if (status == 'reinput_url') {
+      setState(() {
+        _currentNav = 1;
+      });
+      _urlController.text = "";
     }
   }
 
@@ -200,7 +215,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           final result = await apiService.uploadScan(photo, context: contextText);
           if (!mounted) return;
           if (result != null) {
-            Navigator.pushNamed(context, '/result');
+            final status = await Navigator.pushNamed(context, '/result');
+            if (status != null && mounted) {
+              _handleNavigationResult(status);
+            }
           } else if (apiService.error != null) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(content: Text(apiService.error!), behavior: SnackBarBehavior.floating, backgroundColor: Theme.of(context).colorScheme.error),
@@ -885,20 +903,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         ),
                       ),
                     ),
-                    const Divider(height: 1),
-                    ListTile(
-                      leading: Icon(Icons.cloud_done_rounded, color: Colors.green[400]),
-                      title: Text(_t('curriculum', lang), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
-                      subtitle: Text(_t('validation', lang), style: const TextStyle(fontSize: 10)),
-                      trailing: Container(
-                        width: 8,
-                        height: 8,
-                        decoration: const BoxDecoration(
-                          color: Colors.green,
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                    ),
+
                     const Divider(height: 1),
                     ListTile(
                       leading: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent),
@@ -1338,6 +1343,18 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           enabledBorder: InputBorder.none,
                           focusedBorder: InputBorder.none,
                           prefixIcon: Icon(Icons.link_rounded, color: Colors.white.withOpacity(0.5), size: 20),
+                          suffixIcon: IconButton(
+                            icon: Icon(Icons.content_paste_rounded, color: Colors.white.withOpacity(0.55), size: 18),
+                            onPressed: () async {
+                              final ClipboardData? data = await Clipboard.getData(Clipboard.kTextPlain);
+                              if (data != null && data.text != null) {
+                                setState(() {
+                                  _urlController.text = data.text!;
+                                });
+                              }
+                            },
+                            tooltip: 'Tempel dari Clipboard',
+                          ),
                         ),
                         onChanged: (text) => setState(() {}),
                       ),
@@ -1532,7 +1549,36 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
+  /// Map asset key -> localized display name
+  String _localizedTopic(String? assetKey, String originalTopic, String lang) {
+    if (lang == 'en') {
+      const map = {
+        'heart': 'Human Heart Anatomy',
+        'dna_helix': 'DNA Double Helix',
+        'water_molecule': 'Water Molecule (H₂O)',
+        'atom': 'Bohr Atomic Model',
+      };
+      return map[assetKey] ?? originalTopic;
+    }
+    return originalTopic;
+  }
+
+  /// Map asset key -> localized short description for history cards
+  String _localizedSnippet(String? assetKey, String originalExplanation, String lang) {
+    if (lang == 'en') {
+      const map = {
+        'heart': 'Internal structure of the human heart including chambers, valves, and major blood vessels.',
+        'dna_helix': 'DNA double helix structure with phosphate backbone and complementary base pairs.',
+        'water_molecule': 'Polar covalent bond between one oxygen and two hydrogen atoms with bent geometry.',
+        'atom': 'Rutherford-Bohr atomic model showing nucleus surrounded by electron orbits.',
+      };
+      return map[assetKey] ?? originalExplanation.replaceAll(RegExp(r'[#\*]'), '');
+    }
+    return originalExplanation.replaceAll(RegExp(r'[#\*]'), '');
+  }
+
   Widget _buildHistoryList(BuildContext context, ApiService apiService, bool isDark, ColorScheme scheme) {
+    final lang = apiService.language;
     return SizedBox(
       height: 120,
       child: ListView.builder(
@@ -1547,11 +1593,16 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             [const Color(0xFFF59E0B), const Color(0xFFF97316)],
           ];
           final colors = colorPairs[index % colorPairs.length];
+          final displayTopic = _localizedTopic(item.asset3dUrl, item.subjectTopic, lang);
+          final snippet = _localizedSnippet(item.asset3dUrl, item.explanation, lang);
           return GestureDetector(
-            onTap: () {
+            onTap: () async {
               apiService.setCapturedImage(null);
               apiService.selectResult(item);
-              Navigator.pushNamed(context, '/result');
+              final status = await Navigator.pushNamed(context, '/result');
+              if (status != null && mounted) {
+                _handleNavigationResult(status);
+              }
             },
             child: Container(
               width: 220,
@@ -1586,11 +1637,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                   ),
                                 ),
                                 const SizedBox(width: 10),
-                                Expanded(child: Text(item.subjectTopic, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13), maxLines: 1, overflow: TextOverflow.ellipsis)),
+                                Expanded(child: Text(displayTopic, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13), maxLines: 1, overflow: TextOverflow.ellipsis)),
                               ],
                             ),
                             const SizedBox(height: 8),
-                            Text(item.explanation.replaceAll(RegExp(r'[#\*]'), ''),
+                            Text(snippet,
                                 style: TextStyle(color: isDark ? Colors.grey[400] : Colors.grey[600], fontSize: 11, height: 1.4), maxLines: 2, overflow: TextOverflow.ellipsis),
                             const Spacer(),
                             Row(

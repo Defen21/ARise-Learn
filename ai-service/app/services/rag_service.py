@@ -89,6 +89,7 @@ class RAGService:
             "- Start with a simple definition, then explain how it works, then why it matters.\n"
             "- Include one everyday analogy (e.g., atom = mini solar system, DNA = building blueprint, heart = automatic water pump).\n"
             "- Keep language simple and friendly for high-school students.\n"
+            "- Write 100% exclusively in the requested target language. If Bahasa Indonesia, use proper Indonesian terms (e.g., 'berkontraksi' or 'menguncup' for heart contraction). Do NOT mix languages, use English words where Indonesian fits, or output Chinese characters (Hanzi) under any circumstances.\n"
             "- Do NOT output these formatting rules in your answer."
         )
 
@@ -131,10 +132,14 @@ class RAGService:
             "screen, or educational material about science (physics, chemistry, biology).\n"
             "Focus ONLY on the main academic/science subject visible in the image.\n"
             "Ignore any UI elements, browser chrome, or non-academic content.\n\n"
+            "CRITICAL: If the image is blurry, unclear, does not contain a recognizable science object, "
+            "or contains an academic topic that is outside our supported 3D models ('atom', 'dna_helix', 'heart', 'water_molecule'), "
+            "you MUST set 3D_HINT to 'none' and set CONFIDENCE to a value below 0.70 (e.g. 0.50) to alert the system to ask for a rescan.\n\n"
             "Respond in this EXACT format (one line each):\n"
             "TOPIC: <the main science/academic topic, e.g. 'Atomic Structure', 'DNA', 'Heart Anatomy', 'Water Molecule'>\n"
             "CONTENT: <brief description of the academic content visible>\n"
-            "3D_HINT: <one of: 'atom', 'dna_helix', 'heart', 'water_molecule', or 'none'>"
+            "3D_HINT: <one of: 'atom', 'dna_helix', 'heart', 'water_molecule', or 'none'>\n"
+            "CONFIDENCE: <a decimal number between 0.0 and 1.0 representing how clearly and accurately the scanned image matches this science topic (e.g. 0.95)>"
         )
         if context:
             vision_prompt += f"\n\nAdditional context: This is from a {context} course."
@@ -146,15 +151,23 @@ class RAGService:
         topic = "General Academic"
         content = raw_analysis
         asset_hint = None
+        confidence = 0.60
 
         for line in raw_analysis.split("\n"):
             line = line.strip()
-            if line.startswith("TOPIC:"):
-                topic = line.replace("TOPIC:", "").strip()
-            elif line.startswith("CONTENT:"):
-                content = line.replace("CONTENT:", "").strip()
-            elif line.startswith("3D_HINT:"):
-                hint = line.replace("3D_HINT:", "").strip().lower()
+            # Clean up leading bullet points, numbers (e.g. 1., 1)), asterisks, etc.
+            import re
+            cleaned = re.sub(r'^(?:[*\-#\s]|\d+\.\s|\d+\)\s)+', '', line).strip()
+            # Remove bold formatting around keys/values
+            cleaned = cleaned.replace("**", "").replace("__", "")
+            
+            cleaned_lower = cleaned.lower()
+            if cleaned_lower.startswith("topic:"):
+                topic = cleaned[len("topic:"):].strip()
+            elif cleaned_lower.startswith("content:"):
+                content = cleaned[len("content:"):].strip()
+            elif cleaned_lower.startswith("3d_hint:"):
+                hint = cleaned[len("3d_hint:"):].strip().lower()
                 if "water" in hint or "h2o" in hint:
                     asset_hint = "water_molecule"
                 elif "dna" in hint or "helix" in hint:
@@ -165,6 +178,17 @@ class RAGService:
                     asset_hint = "atom"
                 else:
                     asset_hint = hint if hint != "none" else None
+            elif cleaned_lower.startswith("confidence:"):
+                try:
+                    # Strip any potential percent sign or extra spaces
+                    val_str = cleaned[len("confidence:"):].strip().rstrip("%").strip()
+                    val = float(val_str)
+                    # If it's a percentage like 94.0 or 94, divide by 100
+                    if val > 1.0:
+                        val = val / 100.0
+                    confidence = val
+                except ValueError:
+                    pass
 
         # Step 1b: Cross-validate topic with asset_hint
         # If the 3D hint was detected but topic doesn't match, align the topic
@@ -196,6 +220,8 @@ class RAGService:
         # Step 3: Generate explanation driven by TOPIC (not raw content)
         if chunks:
             explanation = await self.generate_answer(explanation_subject, chunks, language=language)
+            # Boost confidence slightly if verified with textbook chunks
+            confidence = min(1.0, confidence + 0.05)
         else:
             lang_instruction = "Provide a clear, structured explanation in Bahasa Indonesia."
             if language == "en":
@@ -215,10 +241,13 @@ class RAGService:
         # Step 4: Generate next-topic recommendations
         recommendations = await self._generate_recommendations(topic, explanation_subject, language=language)
 
+        # Make sure confidence is inside 0.0 and 1.0 bounds
+        confidence = max(0.0, min(1.0, confidence))
+
         return {
             "explanation": explanation,
             "subject_topic": topic,
-            "confidence": 0.85 if chunks else 0.60,
+            "confidence": confidence,
             "asset_3d_hint": asset_hint,
             "recommendations": recommendations,
         }

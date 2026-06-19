@@ -93,53 +93,131 @@ class _ScanResultScreenState extends State<ScanResultScreen> with SingleTickerPr
   List<TextSpan> _parseMarkdown(String text, BuildContext context, bool isDark, {bool compact = false}) {
     final List<TextSpan> spans = [];
     final lines = text.split('\n');
-    
+
+    final defaultColor = compact ? Colors.white70 : (isDark ? Colors.grey[300] : Colors.grey[800]);
+    final boldColor = compact ? Colors.white : (isDark ? Colors.white : Colors.black);
+    final defaultSize = compact ? 10.5 : 13.5;
+    final headerSize = compact ? 11.0 : 16.0;
+    final lineHeight = compact ? 1.3 : 1.5;
+
+    // Regex for inline bold: **text** or __text__
+    final boldRegex = RegExp(r'\*\*(.+?)\*\*|__(.+?)__');
+
     for (int i = 0; i < lines.length; i++) {
       final line = lines[i].trim();
       if (line.isEmpty) {
         spans.add(const TextSpan(text: '\n'));
         continue;
       }
-      
+
+      // --- Headers (### or ##) ---
       if (line.startsWith('### ')) {
+        final headerText = line.substring(4).replaceAll('**', '');
         spans.add(TextSpan(
-          text: compact ? '${line.substring(4)}\n' : '\n${line.substring(4)}\n',
+          text: compact ? '$headerText\n' : '\n$headerText\n',
           style: TextStyle(
             fontWeight: FontWeight.bold,
             color: compact
                 ? (_selectedPart != null ? _getPartColor(_selectedPart!) : Colors.white)
                 : Theme.of(context).colorScheme.primary,
-            fontSize: compact ? 11.0 : 16.0,
+            fontSize: headerSize,
           ),
         ));
-      } else if (line.startsWith('**') && line.endsWith('**')) {
+        continue;
+      }
+      if (line.startsWith('## ')) {
+        final headerText = line.substring(3).replaceAll('**', '');
         spans.add(TextSpan(
-          text: '${line.replaceAll('**', '')}\n',
+          text: '\n$headerText\n',
           style: TextStyle(
             fontWeight: FontWeight.bold,
-            fontSize: compact ? 10.5 : 13.5,
-            color: compact ? Colors.white : (isDark ? Colors.white : Colors.black),
+            color: Theme.of(context).colorScheme.primary,
+            fontSize: headerSize + 1,
           ),
         ));
-      } else {
-        // Simple inline bold parser
-        final parts = line.split('**');
-        for (int j = 0; j < parts.length; j++) {
-          final isBold = j % 2 == 1;
-          spans.add(TextSpan(
-            text: parts[j],
-            style: TextStyle(
-              fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
-              fontSize: compact ? 10.5 : 13.5,
-              height: compact ? 1.3 : 1.5,
-              color: compact ? Colors.white70 : (isDark ? Colors.grey[300] : Colors.grey[800]),
-            ),
-          ));
-        }
-        spans.add(const TextSpan(text: '\n'));
+        continue;
       }
+
+      // --- Detect bullet / numbered prefix ---
+      String prefix = '';
+      String content = line;
+
+      // Bullet: -, *, or numbered: 1., 2), etc.
+      final bulletMatch = RegExp(r'^(\s*[-*]\s+|(?:\d+[.)]\s+))').firstMatch(line);
+      if (bulletMatch != null) {
+        prefix = '  •  ';
+        content = line.substring(bulletMatch.end);
+      }
+
+      // Add prefix if present
+      if (prefix.isNotEmpty) {
+        spans.add(TextSpan(
+          text: prefix,
+          style: TextStyle(
+            fontSize: defaultSize,
+            height: lineHeight,
+            color: defaultColor,
+          ),
+        ));
+      }
+
+      // --- Parse inline bold with regex ---
+      _parseInlineBold(spans, content, boldRegex,
+        defaultStyle: TextStyle(
+          fontWeight: FontWeight.normal,
+          fontSize: defaultSize,
+          height: lineHeight,
+          color: defaultColor,
+        ),
+        boldStyle: TextStyle(
+          fontWeight: FontWeight.bold,
+          fontSize: defaultSize,
+          height: lineHeight,
+          color: boldColor,
+        ),
+      );
+
+      spans.add(const TextSpan(text: '\n'));
     }
     return spans;
+  }
+
+  /// Parse inline **bold** from [content] using [regex] and append TextSpans.
+  void _parseInlineBold(
+    List<TextSpan> spans,
+    String content,
+    RegExp regex, {
+    required TextStyle defaultStyle,
+    required TextStyle boldStyle,
+  }) {
+    int lastEnd = 0;
+    for (final match in regex.allMatches(content)) {
+      // Add text before this match
+      if (match.start > lastEnd) {
+        spans.add(TextSpan(
+          text: content.substring(lastEnd, match.start),
+          style: defaultStyle,
+        ));
+      }
+      // The bold content (group 1 for ** or group 2 for __)
+      final boldText = match.group(1) ?? match.group(2) ?? '';
+      spans.add(TextSpan(
+        text: boldText,
+        style: boldStyle,
+      ));
+      lastEnd = match.end;
+    }
+    // Add remaining text after last match
+    if (lastEnd < content.length) {
+      // Strip any remaining stray ** that weren't matched (odd count)
+      final remaining = content.substring(lastEnd).replaceAll('**', '');
+      if (remaining.isNotEmpty) {
+        spans.add(TextSpan(
+          text: remaining,
+          style: defaultStyle,
+        ));
+      }
+    }
   }
 
   Widget _buildMiniControlBtn({
@@ -568,6 +646,8 @@ class _ScanResultScreenState extends State<ScanResultScreen> with SingleTickerPr
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            if (!_isValidAsset(result.asset3dUrl) || result.confidence < 0.75)
+              _buildUnrecognizedWarning(context, result, isDark),
             // 1. Interactive 3D AR Model Viewport (Always Bohr Atom model for mockup, but interactive)
             MouseRegion(
               onEnter: (_) => setState(() => _isHovering3D = true),
@@ -623,9 +703,11 @@ class _ScanResultScreenState extends State<ScanResultScreen> with SingleTickerPr
                                     ),
                                   ),
                                   const SizedBox(height: 16),
-                                  const Text(
-                                    'Visualisasi 3D AR Tidak Tersedia',
-                                    style: TextStyle(
+                                  Text(
+                                    apiService.language == 'en'
+                                        ? '3D AR Visualization Unavailable'
+                                        : 'Visualisasi 3D AR Tidak Tersedia',
+                                    style: const TextStyle(
                                       color: Colors.white,
                                       fontWeight: FontWeight.bold,
                                       fontSize: 16,
@@ -634,7 +716,9 @@ class _ScanResultScreenState extends State<ScanResultScreen> with SingleTickerPr
                                   ),
                                   const SizedBox(height: 8),
                                   Text(
-                                    'Model 3D interaktif belum tersedia untuk topik "${result.subjectTopic}".\nPlatform ini mendukung visualisasi 3D untuk: Jantung, DNA, Molekul Air, dan Atom.',
+                                    apiService.language == 'en'
+                                        ? 'Interactive 3D model is not yet available for "${result.subjectTopic}".\nThis platform supports 3D visualization for: Heart, DNA, Water Molecule, and Atom.'
+                                        : 'Model 3D interaktif belum tersedia untuk topik "${result.subjectTopic}".\nPlatform ini mendukung visualisasi 3D untuk: Jantung, DNA, Molekul Air, dan Atom.',
                                     style: const TextStyle(
                                       color: Colors.white70,
                                       fontSize: 12,
@@ -1164,42 +1248,6 @@ class _ScanResultScreenState extends State<ScanResultScreen> with SingleTickerPr
             ),
 
 
-            // 6. Grounding RAG Curriculum Source Card
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text(
-                    apiService.language == 'en' ? 'Official Curriculum Grounding' : 'Grounding Kurikulum Resmi',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14,
-                        ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    apiService.language == 'en'
-                        ? 'The AI explanation above has been validated against official textbook databases to prevent answer hallucinations.'
-                        : 'Penjelasan AI di atas telah divalidasi terhadap basis data buku teks resmi untuk mencegah halusinasi jawaban.',
-                    style: TextStyle(
-                      color: isDark ? Colors.grey[400] : Colors.grey[600],
-                      fontSize: 12,
-                      height: 1.4,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  _buildCurriculumSourceCard(
-                    context,
-                    title: _getCurriculumTitle(result.asset3dUrl),
-                    description: _getCurriculumDesc(result.asset3dUrl),
-                    sourceName: 'LIDM Official Database v2026',
-                    score: result.confidence,
-                  ),
-                ],
-              ),
-            ),
-
             // 7. Rekomendasi Materi Selanjutnya
             if (result.recommendations.isNotEmpty)
               Padding(
@@ -1426,99 +1474,113 @@ class _ScanResultScreenState extends State<ScanResultScreen> with SingleTickerPr
     );
   }
 
-  String _getCurriculumTitle(String? assetId) {
-    if (assetId == 'heart') return 'Biologi Kedokteran XI';
-    if (assetId == 'dna_helix') return 'Prinsip Genetika Dasar';
-    if (assetId == 'water_molecule') return 'Kimia Fisika I';
-    return 'Fisika Kuantum Terapan';
-  }
+  Widget _buildUnrecognizedWarning(BuildContext context, ScanResult result, bool isDark) {
+    final apiService = Provider.of<ApiService>(context, listen: false);
+    final isEn = apiService.language == 'en';
+    final bool isLowConfidence = result.confidence < 0.75;
+    final confStr = (result.confidence * 100).toStringAsFixed(0);
 
-  String _getCurriculumDesc(String? assetId) {
-    if (assetId == 'heart') {
-      return 'Bab 4: Sistem Sirkulasi & Mekanika Jantung. Kurikulum Merdeka Halaman 112-125.';
-    }
-    if (assetId == 'dna_helix') {
-      return 'Bab 9: Pewarisan Sifat & Struktur Nukleotida Watson-Crick. Halaman 304-320.';
-    }
-    if (assetId == 'water_molecule') {
-      return 'Bab 6: Sudut Ikatan Kovalen Polar & Teori Hibridisasi VSEPR. Halaman 98-109.';
-    }
-    return 'Bab 2: Mekanika Bohr & Model Kulit Elektron Hidrogen. Halaman 45-56.';
-  }
+    String title = isEn
+        ? 'Object / Topic Not Supported in 3D'
+        : 'Objek / Topik Tidak Didukung 3D';
+    String message = isEn
+        ? 'AI detected topic: "${result.subjectTopic}" (Confidence: $confStr%).\n\n'
+          'Interactive 3D visualization is not yet available for this topic. For the best AR learning experience, please rescan a textbook about Heart, DNA, Water Molecule, or Atom.'
+        : 'AI mendeteksi topik: "${result.subjectTopic}" (Tingkat Keyakinan: $confStr%).\n\n'
+          'Materi visualisasi 3D interaktif belum tersedia untuk topik ini. Untuk pengalaman belajar AR terbaik, silakan pindai ulang buku teks yang membahas Jantung, DNA, Molekul Air, atau Atom.';
 
-  Widget _buildCurriculumSourceCard(
-    BuildContext context, {
-    required String title,
-    required String description,
-    required String sourceName,
-    required double score,
-  }) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    if (isLowConfidence) {
+      title = isEn
+          ? 'Scan Result Unclear / Blurry'
+          : 'Hasil Pindai Kurang Jelas / Buram';
+      message = isEn
+          ? 'AI detected topic with low confidence of $confStr%.\n\n'
+            'Make sure the camera is focused, well-lit, and the image is not blurry. Please rescan or enter a clearer image URL.'
+          : 'AI mendeteksi topik dengan tingkat keyakinan rendah yaitu $confStr%.\n\n'
+            'Pastikan kamera terfokus, memiliki pencahayaan cukup, dan gambar tidak blur. Silakan pindai ulang atau masukkan URL gambar yang lebih jelas.';
+    }
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E293B) : Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: isDark ? const Color(0xFF334155) : Colors.grey[200]!,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
-            blurRadius: 6,
-            offset: const Offset(0, 3),
-          ),
-        ],
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(24),
+        side: BorderSide(color: Colors.amber.withOpacity(0.35), width: 1.5),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                title,
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Colors.green.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(12),
+      color: Colors.amber.withOpacity(isDark ? 0.12 : 0.06),
+      elevation: 0,
+      borderOnForeground: true,
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.amber.withOpacity(0.2),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(Icons.warning_amber_rounded, color: Colors.amber[400], size: 22),
                 ),
-                child: Text(
-                  'Skor RAG: ${(score * 100).toStringAsFixed(0)}%',
-                  style: const TextStyle(
-                    color: Colors.green,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 10,
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    title,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 14,
+                      color: isDark ? Colors.amber[200] : Colors.amber[800],
+                    ),
                   ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            description,
-            style: TextStyle(
-              fontSize: 13,
-              color: isDark ? Colors.grey[300] : Colors.grey[700],
-              height: 1.4,
+              ],
             ),
-          ),
-          const Divider(height: 24, thickness: 1),
-          Row(
-            children: [
-              Icon(Icons.library_books_outlined, size: 14, color: Colors.grey[500]),
-              const SizedBox(width: 6),
-              Text(
-                sourceName,
-                style: TextStyle(color: Colors.grey[500], fontSize: 11),
+            const SizedBox(height: 12),
+            Text(
+              message,
+              style: TextStyle(
+                fontSize: 12,
+                height: 1.5,
+                color: isDark ? Colors.grey[300] : Colors.grey[700],
               ),
-            ],
-          ),
-        ],
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: FilledButton.icon(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: Colors.amber[600],
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                    onPressed: () => Navigator.pop(context, 'rescan'),
+                    icon: const Icon(Icons.photo_camera_outlined, size: 16),
+                    label: Text(isEn ? 'Retake' : 'Ambil Ulang', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: isDark ? Colors.amber[200] : Colors.amber[800],
+                      side: BorderSide(color: Colors.amber.withOpacity(0.4)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                    onPressed: () => Navigator.pop(context, 'reinput_url'),
+                    icon: const Icon(Icons.link_rounded, size: 16),
+                    label: Text(isEn ? 'Change URL' : 'Ganti URL', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1626,7 +1688,9 @@ class _ScopedAIChatCardState extends State<ScopedAIChatCard> {
               ),
               const SizedBox(width: 10),
               Text(
-                'Tanya Jawab Scoped AI',
+                Provider.of<ApiService>(context, listen: false).language == 'en'
+                    ? 'Scoped AI Q&A'
+                    : 'Tanya Jawab Scoped AI',
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
                   fontSize: 14,
@@ -1637,7 +1701,9 @@ class _ScopedAIChatCardState extends State<ScopedAIChatCard> {
           ),
           const SizedBox(height: 6),
           Text(
-            'Obrolan ini dibatasi khusus membahas "${widget.topic}" untuk menjaga fokus belajar.',
+            Provider.of<ApiService>(context, listen: false).language == 'en'
+                ? 'This chat is limited to discussing "${widget.topic}" to maintain learning focus.'
+                : 'Obrolan ini dibatasi khusus membahas "${widget.topic}" untuk menjaga fokus belajar.',
             style: TextStyle(
               color: isDark ? Colors.grey[400] : Colors.grey[600],
               fontSize: 11.5,
@@ -1651,7 +1717,9 @@ class _ScopedAIChatCardState extends State<ScopedAIChatCard> {
               padding: const EdgeInsets.symmetric(vertical: 24),
               child: Center(
                 child: Text(
-                  'Tanyakan hal menarik tentang topik ini di bawah...',
+                  Provider.of<ApiService>(context, listen: false).language == 'en'
+                      ? 'Ask something interesting about this topic below...'
+                      : 'Tanyakan hal menarik tentang topik ini di bawah...',
                   style: TextStyle(
                     color: isDark ? Colors.grey[500] : Colors.grey[400],
                     fontSize: 12,
@@ -1689,7 +1757,7 @@ class _ScopedAIChatCardState extends State<ScopedAIChatCard> {
                         ),
                       ),
                       child: Text(
-                        msg['content'] ?? '',
+                        (msg['content'] ?? '').replaceAll('**', ''),
                         style: TextStyle(
                           color: isUser
                               ? Colors.white
@@ -1737,7 +1805,9 @@ class _ScopedAIChatCardState extends State<ScopedAIChatCard> {
                   controller: _controller,
                   onSubmitted: (_) => _sendMessage(),
                   decoration: InputDecoration(
-                    hintText: 'Tanyakan materi...',
+                    hintText: Provider.of<ApiService>(context, listen: false).language == 'en'
+                        ? 'Ask about the material...'
+                        : 'Tanyakan materi...',
                     hintStyle: TextStyle(
                       color: isDark ? Colors.grey[500] : Colors.grey[400],
                       fontSize: 12.5,

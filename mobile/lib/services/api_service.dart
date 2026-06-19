@@ -20,10 +20,10 @@ class ApiService extends ChangeNotifier {
     _capturedImage = image;
     notifyListeners();
   }
-  // Auto-detect platform: web uses localhost, Android emulator uses 10.0.2.2
+  // For mobile devices, we use 127.0.0.1 which is forwarded to the computer via adb reverse
   static String get _baseUrl {
     if (kIsWeb) return 'http://localhost:8080';
-    return 'http://10.0.2.2:8080'; // Android emulator
+    return 'http://127.0.0.1:8080';
   }
 
   final Dio _dio = Dio(BaseOptions(
