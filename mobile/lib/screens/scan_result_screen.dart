@@ -1163,11 +1163,6 @@ class _ScanResultScreenState extends State<ScanResultScreen> with SingleTickerPr
               ),
             ),
 
-            // 5. Spotify Voice Assistant Player
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: SpotifyVoicePlayer(topicName: result.subjectTopic),
-            ),
 
             // 6. Grounding RAG Curriculum Source Card
             Padding(
